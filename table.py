@@ -15,91 +15,81 @@ df = pd.DataFrame({
 app = Dash(__name__)
 
 app.layout = html.Div([
-    #
     html.Div([
-        dcc.Dropdown(
-            id='column-dropdown',
-            options=[{'label': col, 'value': col} for col in df.columns],
-            placeholder='Select a column to add a row from...',
-            style={'padding': 10}
-        ),
-        html.Button('Add Row', id='adding-row-button', n_clicks=0)
-    ], 
-    style={'height': 50,'width': 100,'grid-column':'1/2','grid-row':'2/3','display':'flex','justify-content':'center','align-items':'center',
-            'background-color':'#f0f0f0','border-radius':'10px','padding':'10px'}
-    ),
-
-    html.Div([
-        dcc.Dropdown(
-            id='stat-dropdown',
-            options=[
-                {'label': 'Mean', 'value': 'mean'},
-                {'label': 'Standard Deviation', 'value': 'std'}
-            ],
-            placeholder='Select a statistic to add as column...',
-            style={'padding': 10}
-        ),
-        html.Button('Add Column', id='adding-column-button', n_clicks=0)
-    ], 
-    style={'height': 50,'width': 100,'grid-column':'2/3','grid-row':'1/2','display':'flex','justify-content':'center','align-items':'center',
-            'background-color':'#f0f0f0','border-radius':'10px','padding':'10px'}
-    ),
-    html.Div([
-        dash_table.DataTable(
-            id='dynamic-table',
-            columns=[{
-                'name': col,
-                'id': col,
-                'deletable': True,
-                'renamable': True
-            } for col in df.columns],
-            data=df.to_dict('records'),
-            editable=True,
-            row_deletable=True,
+        html.Div([
+            dash_table.DataTable(
+                id='data-table',
+                columns=[{
+                    'name': 'Column {}'.format(i),
+                    'id': 'column-{}'.format(i),
+                    'deletable': True,
+                    'renamable': True
+                } for i in range(1, 5)],
+                data=[
+                    {'column-{}'.format(i): (j + (i-1)*5) for i in range(1, 5)}
+                    for j in range(5)
+                ],
+                editable=True,
+                row_deletable=True
             )
-        ],
-    style={'height': 400,'width': 1000, 'overflowY': 'scroll','overflowX': 'scroll',
-            'grid-column': '1 / 2','grid-row': '1 / 2','display':'flex','justify-content':'center','align-items':'center'
-            ,'background-color':'#f0f0f0','border-radius':'10px','padding':'10px'}
-    )
-],
-    style={"display":"grid","grid-template-columns":"auto auto","grid-template-rows":"auto auto","gap":"10px"}
-)
+        ], style={'flex': 2}),
+        html.Div([
+            dcc.Dropdown(
+                id='adding-columns-dropdown',
+                options=[{'label': 'Mean', 'value': 'mean'},
+                         {'label': 'Standard Deviation', 'value': 'sd'}],
+                style={'flex': 2}
+            ),
+            html.Button('Add Column', id='adding-columns-button', n_clicks=0,
+                        )
+        ], style={'width': '10%', 'display': 'flex', 'flex': 1, 'justify-content': 'flex-start',
+                    'height':50,'background-color': 'lightgreen'})
+    ], style={'display': 'flex', 'width': '100%','background-color': 'lightgray'}),
+    
+    html.Div([
+        dcc.Dropdown(
+            id='adding-rows-dropdown',
+            options=[{'label': col, 'value': col} for col in df.columns],
+            style={'flex': 2}
+        ),
+        html.Button('Add Row', id='adding-rows-button', n_clicks=0)
+    ], style={'display': 'flex', 'justify-content': 'flex-start', 'align-items': 'center', 'height': 50, 'width': '20%',
+              'background-color': 'lightblue'}),
+])
 
 
 @callback(
-    Output('dynamic-table', 'data'),
-    Input('adding-row-button', 'n_clicks'),
-    State('column-dropdown', 'value'),
-    State('dynamic-table', 'data'),
-    State('dynamic-table', 'columns'))
-def add_row(n_clicks, selected_column, rows, columns):
-    if n_clicks > 0 and selected_column:
-        new_row = {c['id']: '' for c in columns}
-        new_row[selected_column] = df[selected_column].iloc[len(rows) % len(df[selected_column])]
-        rows.append(new_row)
+    Output('data-table', 'data'),
+    Input('adding-rows-button', 'n_clicks'),
+    State('adding-rows-dropdown', 'value'),
+    State('data-table', 'data'),
+    State('data-table', 'columns'))
+def add_row(n_clicks,row_to_add,rows, columns):
+    if n_clicks > 0:
+        rows.append({c['id']: '' for c in columns})
     return rows
 
 
 @callback(
-    Output('dynamic-table', 'columns'),
-    Input('adding-column-button', 'n_clicks'),
-    State('stat-dropdown', 'value'),
-    State('dynamic-table', 'columns'))
-def add_column(n_clicks, selected_stat, existing_columns):
-    if n_clicks > 0 and selected_stat:
-        stat_col_id = f'{selected_stat}'
-        if selected_stat == 'mean':
-            stat_values = df.mean()
-        elif selected_stat == 'std':
-            stat_values = df.std()
-        existing_columns.append({
-            'id': stat_col_id, 'name': stat_col_id,
-            'renamable': True, 'deletable': True
-        })
+    Output('data-table', 'columns'),
+    Input('adding-columns-button', 'n_clicks'),
+    State('adding-columns-dropdown', 'value'),
+    State('data-table', 'data'),
+    State('data-table', 'columns'))
+def add_column(n_clicks, column_to_add, rows, columns):
+    if n_clicks > 0 and column_to_add is not None:
+        new_column = {
+            'id': column_to_add,
+            'name': column_to_add,
+            'renamable': True,
+            'deletable': True
+        }
+        columns.append(new_column)
         for row in rows:
-            row[stat_col_id] = stat_values
-    return existing_columns
+            row[column_to_add] = ''
+    return columns
+
+
 
 
 if __name__ == '__main__':
