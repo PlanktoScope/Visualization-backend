@@ -1,12 +1,10 @@
 import plotly.express as px
 from dash import Dash, dcc, html, Input, Output
 import json
-
-import utils as utils
-
+import utils
 
 class ScatterPlot:
-    def __init__(self,controller, df, x, y):
+    def __init__(self, controller, df, x, y):
         self.controller = controller
         self.df = df
         self.x = x
@@ -14,11 +12,10 @@ class ScatterPlot:
 
         self.publisher = "visualization/chartPage"
         self.port = utils.find_first_available_local_port()
-        self.url=f"http://127.0.0.1:{self.port}/"
+        self.url = f"http://127.0.0.1:{self.port}/"
         self.thread = None
         self.start_thread()
         
-
     def create_scatter_fig(self):
         fig = px.scatter(
             data_frame=self.df,
@@ -44,9 +41,8 @@ class ScatterPlot:
                 ]),
                  type="buttons",
                 direction="down",
-                #pad={"r": 10, "t": 10},
                 showactive=True,
-                x=-0.08,
+                x=-0.03,
                 xanchor="left",
                 y=1,
                 yanchor="top"
@@ -64,7 +60,6 @@ class ScatterPlot:
                 ]),
                 type="buttons",
                 direction="right",
-                #pad={"r": 10, "t": 10},
                 showactive=True,
                 x=0.90,
                 xanchor="left",
@@ -77,13 +72,11 @@ class ScatterPlot:
 
     def scatter_plot(self):
         fig = self.create_scatter_fig()
-        
 
         app = Dash(__name__)
 
         app.layout = html.Div([
             dcc.Graph(id='scatter-plot', figure=fig),
-            html.Div(id='output-div'),
             html.Button('X', id='stop-button', n_clicks=0,
                         style={'position': 'absolute', 'top': 10, 'right': 10,
                                'background-color': 'red', 'color': 'white'})
@@ -91,17 +84,6 @@ class ScatterPlot:
             style={'position': 'relative', 'width': '100%', 'height': '100%'}
         )
 
-        @app.callback(
-            Output('output-div', 'children'),
-            Input('scatter-plot', 'clickData')
-        )
-        def display_click_data(clickData):
-            if clickData is None:
-                return "Cliquez sur un point pour voir les données personnalisées"
-            point_data = clickData['points'][0]
-            customdata = point_data['customdata']
-            return f'Clicked point customdata: {customdata}'
-        
         @app.callback(
             Output('stop-button', 'children'),
             Input('stop-button', 'n_clicks')
@@ -112,8 +94,8 @@ class ScatterPlot:
                 return "Server stopped"
             return "X"
 
-        app.run_server(debug=False, port=self.port,use_reloader=False)
 
+        app.run(debug=False, port=self.port, use_reloader=False)
         print(f"Server running at {self.url}")
 
     def start_thread(self):
@@ -127,8 +109,6 @@ class ScatterPlot:
         self.thread.join()
         print("Server stopped at", self.url)
 
-        
-
 # Example usage
 if __name__ == "__main__":
     # Example DataFrame df and columns x, y
@@ -137,10 +117,7 @@ if __name__ == "__main__":
     y = 'sepal_length'
     df['img_file_name'] = [f"img_{i}.png" for i in range(len(df))]
 
-
-    #scatter plot
-    scatter_plot = ScatterPlot(df, x, y)
+    # scatter plot
+    scatter_plot = ScatterPlot(None, df, x, y)
 
     input("Press Enter to stop the main thread")
-
-

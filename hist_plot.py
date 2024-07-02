@@ -72,18 +72,19 @@ class HistPlot:
                     'xanchor': 'left',
                     'y': 1.1,
                     'yanchor': 'top'
-                },
-                {
-                    'buttons': scale_buttons,
-                    'direction': 'left',
-                    'pad': {'r': 10, 't': 10},
-                    'showactive': True,
-                    'type': 'buttons',
-                    'x': 0.5,
-                    'xanchor': 'left',
-                    'y': 1.1,
-                    'yanchor': 'top'
                 }
+                # ,
+                # {
+                #     'buttons': scale_buttons,
+                #     'direction': 'left',
+                #     'pad': {'r': 10, 't': 10},
+                #     'showactive': True,
+                #     'type': 'buttons',
+                #     'x': 0.5,
+                #     'xanchor': 'left',
+                #     'y': 1.1,
+                #     'yanchor': 'top'
+                # }
             ]
         )
         return fig

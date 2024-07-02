@@ -13,4 +13,4 @@ def load_dataframe(path):
             df[col] = pd.to_numeric(df[col])
     
     print(df.head(3))
-    return df
+    return df,len(df)

@@ -1,9 +1,11 @@
 import paho.mqtt.client as mqtt
 import json
+import time
+
 import load_dataframe as ld
 import scatter_plot as sp
 import hist_plot as hp
-import html_manager as hm
+import utils as utils
 
 # Configuration du broker MQTT
 broker = "localhost"
@@ -30,11 +32,13 @@ def on_message(controller, userdata, msg):
             if len(args) != 1:
                 print(f"Arguments invalides pour 'load dataframe': {args}\nExemple: {{'command': 'load dataframe', 'args': ['/path/to/dataframe']}}")
             else:
-                df = ld.load_dataframe(args[0])
+                df,number_of_object = ld.load_dataframe(args[0])
                 msg = {"command": "add metadata", "metadata": df.keys().tolist()}
                 controller.publish(publisher, json.dumps(msg))
+                msg = str(number_of_object)
+                controller.publish("visualization/numberOfObject", json.dumps(msg))
                 print(f"DataFrame loaded from {args[0]}")
-        
+                create_default_plot(df, controller)        
         elif command == "create scatter plot":
             if len(args) != 2:
                 print(f"Arguments invalides pour 'create scatter plot': {args}\nExemple: {{'command': 'create scatter plot', 'args': ['x', 'y']}}")
@@ -42,6 +46,7 @@ def on_message(controller, userdata, msg):
                 x = args[0]
                 y = args[1]
                 plot = sp.ScatterPlot(controller,df, x, y)
+                time.sleep(0.5)
                 msg = {"command": "add iframe", "src": plot.url}
                 controller.publish(publisher, json.dumps(msg))
                 print(f"Scatter plot created with x={x} and y={y}")
@@ -52,6 +57,7 @@ def on_message(controller, userdata, msg):
             else:
                 x = args[0]
                 plot = hp.HistPlot(controller,df, x)
+                time.sleep(0.5)
                 msg = {"command": "add iframe", "src": plot.url}
                 controller.publish(publisher, json.dumps(msg))
                 print(f"Histogram plot created for {x}")
@@ -67,15 +73,39 @@ def on_message(controller, userdata, msg):
 def on_publish(controller, userdata, mid):
     print("Message : ", mid,' ',userdata, " envoyé")
 
+def create_default_plot(df, controller):
 
+    # Create scatter plot width_object -> height_object
+    default_plots=[("object_width","object_height"),("object_bx","object_by")]
+    for x,y in default_plots:
+        if(x in df.keys() and y in df.keys()):
+            plot = sp.ScatterPlot(controller,df, x, y)
+
+            msg = {"command": "add iframe", "src": plot.url}
+            controller.publish(publisher, json.dumps(msg))
+            print(f"Scatter plot created with x={x} and y={y}")
+
+            time.sleep(1.)
+        else:
+            print("could not create scatter plot with x={x} and y={y}")
+   
+
+if (__name__ == "__main__"):
     
+    def run():
+        # Initialisation du client MQTT
+        controller = mqtt.Client()
+        controller.on_connect = on_connect
+        controller.on_message = on_message
+        controller.on_publish = on_publish
 
-controller = mqtt.Client()
-controller.on_connect = on_connect
-controller.on_message = on_message
-controller.on_publish = on_publish
+        controller.connect(broker, port, 60)
 
-controller.connect(broker, port, 60)
+        # Boucle de réseau pour écouter les messages MQTT
+        controller.loop_forever()
 
-# Boucle de réseau pour écouter les messages MQTT
-controller.loop_forever()
+    main_thread=utils.ControlledThread(target=run)
+    main_thread.start()
+    input("Press Enter to stop the main thread")
+    main_thread.kill()
+    main_thread.join()
