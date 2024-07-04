@@ -85,7 +85,6 @@ def create_default_plot(df, controller):
             controller.publish(publisher, json.dumps(msg))
             print(f"Scatter plot created with x={x} and y={y}")
 
-            time.sleep(1.)
         else:
             print("could not create scatter plot with x={x} and y={y}")
    

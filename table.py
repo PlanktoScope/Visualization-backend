@@ -6,11 +6,22 @@ import utils as utils
 
 # Exemple de DataFrame
 df = pd.DataFrame({
-    'A': np.random.rand(10),
-    'B': np.random.rand(10),
-    'C': np.random.rand(10),
-    'D': np.random.rand(10)
+    'Index': [f'metadata {i+1}' for i in range(10)],  # Ajout des noms de lignes
+    'Stat1': np.random.rand(10),
+    'Stat2': np.random.rand(10),
+    'Stat3': np.random.rand(10),
+    'Stat4': np.random.rand(10)
 })
+
+stats_options= [{'label': 'Mean', 'value': 'mean'},
+                         {'label': 'Standard Deviation', 'value': 'sd'}]
+
+metadatas_options=[]
+for col in df.columns:
+    if col != 'Index':
+        metadatas_options.append({'label': col, 'value': col})
+
+
 
 app = Dash(__name__)
 
@@ -20,15 +31,12 @@ app.layout = html.Div([
             dash_table.DataTable(
                 id='data-table',
                 columns=[{
-                    'name': 'Column {}'.format(i),
-                    'id': 'column-{}'.format(i),
+                    'name': col,
+                    'id': col,
                     'deletable': True,
                     'renamable': True
-                } for i in range(1, 5)],
-                data=[
-                    {'column-{}'.format(i): (j + (i-1)*5) for i in range(1, 5)}
-                    for j in range(5)
-                ],
+                } for col in df.columns],
+                data=df.to_dict('records'),
                 editable=True,
                 row_deletable=True
             )
@@ -36,20 +44,18 @@ app.layout = html.Div([
         html.Div([
             dcc.Dropdown(
                 id='adding-columns-dropdown',
-                options=[{'label': 'Mean', 'value': 'mean'},
-                         {'label': 'Standard Deviation', 'value': 'sd'}],
+                options=stats_options,
                 style={'flex': 2}
             ),
-            html.Button('Add Column', id='adding-columns-button', n_clicks=0,
-                        )
+            html.Button('Add Column', id='adding-columns-button', n_clicks=0)
         ], style={'width': '10%', 'display': 'flex', 'flex': 1, 'justify-content': 'flex-start',
-                    'height':50,'background-color': 'lightgreen'})
-    ], style={'display': 'flex', 'width': '100%','background-color': 'lightgray'}),
-    
+                  'height': 50, 'background-color': 'lightgreen'})
+    ], style={'display': 'flex', 'width': '100%', 'background-color': 'lightgray'}),
+
     html.Div([
         dcc.Dropdown(
             id='adding-rows-dropdown',
-            options=[{'label': col, 'value': col} for col in df.columns],
+            options=metadatas_options,
             style={'flex': 2}
         ),
         html.Button('Add Row', id='adding-rows-button', n_clicks=0)
@@ -64,9 +70,11 @@ app.layout = html.Div([
     State('adding-rows-dropdown', 'value'),
     State('data-table', 'data'),
     State('data-table', 'columns'))
-def add_row(n_clicks,row_to_add,rows, columns):
+def add_row(n_clicks,row_to_add, rows, columns):
     if n_clicks > 0:
-        rows.append({c['id']: '' for c in columns})
+        new_row = {c['id']: '' for c in columns}
+        new_row['Index'] = row_to_add 
+        rows.append(new_row)
     return rows
 
 
@@ -88,8 +96,6 @@ def add_column(n_clicks, column_to_add, rows, columns):
         for row in rows:
             row[column_to_add] = ''
     return columns
-
-
 
 
 if __name__ == '__main__':
