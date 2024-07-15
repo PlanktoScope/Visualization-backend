@@ -13,7 +13,8 @@ class HistPlot:
 
         self.publisher = "visualization/chartPage"
         self.port = utils.find_first_available_local_port()
-        self.url=f"http://127.0.0.1:{self.port}/"
+        self.ip_address=utils.get_raspberry_pi_ip()
+        self.url = f"http://{self.ip_address}:{self.port}/"
         self.thread = None
         self.start_thread()
 
@@ -126,7 +127,7 @@ class HistPlot:
                 return "Server stopped"
             return "X"
 
-        app.run_server(debug=False, port=self.port,use_reloader=False)
+        app.run_server(debug=False,host=self.ip_address, port=self.port,use_reloader=False)
 
         print(f"Server running at {self.url}")
 

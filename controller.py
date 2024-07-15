@@ -2,109 +2,136 @@ import paho.mqtt.client as mqtt
 import json
 import time
 
+# Import custom modules for data loading and plotting
 import load_dataframe as ld
 import scatter_plot as sp
 import hist_plot as hp
+import datatable_plot as dp
+import world_map as wm
 import utils as utils
 
-# Configuration du broker MQTT
-broker = "localhost"
-port = 1883
-subriber = "visualization/commands"
-publisher = "visualization/chartPage"
+class VisualizationController:
+    def __init__(self, broker="localhost", port=1883, subscriber="visualization/commands"):
+        self.broker = broker  # MQTT broker address
+        self.port = port  # MQTT broker port
+        self.subscriber = subscriber  # MQTT topic to subscribe to for commands
+        self.df = None  # Placeholder for the dataframe
+        self.data_table = None  # Placeholder for the data table visualization
 
-df = None
+        # Initialize MQTT client and set callback functions
+        self.controller = mqtt.Client()
+        self.controller.on_connect = self.on_connect
+        self.controller.on_message = self.on_message
+        self.controller.on_publish = self.on_publish
 
-def on_connect(controller, userdata, flags, rc):
-    print("Connected with result code " + str(rc))
-    controller.subscribe(subriber)
+    def on_connect(self, controller, userdata, flags, rc):
+        # Callback function when the client connects to the broker
+        print("Connected with result code " + str(rc))
+        controller.subscribe(self.subscriber)  # Subscribe to the specified topic
 
-def on_message(controller, userdata, msg):
-    global df
-    try:
-        message = json.loads(msg.payload.decode())
-        command = message.get("command")
-        args = message.get("args", [])
-        print(f"Commande reçue : {command} {args}")
-        print(type(command), type(args))
-        
-        if command == "load dataframe":
-            if len(args) != 1:
-                print(f"Arguments invalides pour 'load dataframe': {args}\nExemple: {{'command': 'load dataframe', 'args': ['/path/to/dataframe']}}")
+    def on_message(self, controller, userdata, received_message):
+        # Callback function when a message is received
+        try:
+            # Parse the received message
+            message = json.loads(received_message.payload.decode())
+            command = message.get("command")
+            args = message.get("args", [])
+            print(f"Received command: command:{command}, args:{args}")
+
+            if command == "load dataframe":
+                if len(args) != 1:
+                    print(f"Invalid arguments for 'load dataframe': {args}\nExample: {{'command': 'load dataframe', 'args': ['/path/to/dataframe']}}")
+                else:
+                    # Load dataframe and extract metadata
+                    self.df, number_of_object, metadatas_of_interest = ld.load_dataframe(args[0])
+                    self.data_table.load_df(self.df)
+                    print(f"DataTable loaded")
+
+                    # Publish metadata and number of objects
+                    self.msg = {"command": "add metadata", "metadata": metadatas_of_interest}
+                    controller.publish("visualization/chartPage", json.dumps(self.msg))
+                    self.msg = str(number_of_object)
+                    controller.publish("visualization/numberOfObject", json.dumps(self.msg))
+                    print(f"DataFrame loaded from {args[0]}")
+                    self.create_default_plot(self.df, controller)
+            
+            elif command == "create scatter plot":
+                if len(args) != 2:
+                    print(f"Invalid arguments for 'create scatter plot': {args}\nExample: {{'command': 'create scatter plot', 'args': ['x', 'y']}}")
+                else:
+                    # Create a scatter plot with specified x and y columns
+                    x, y = args
+                    plot = sp.ScatterPlot(controller, self.df, x, y)
+                    time.sleep(0.5)  # Delay to ensure the plot is created
+                    self.msg = {"command": "add iframe", "src": plot.url}
+                    controller.publish("visualization/chartPage", json.dumps(self.msg))
+                    print(f"Scatter plot created with x={x} and y={y}")
+
+            elif command == "create hist plot":
+                if len(args) != 1:
+                    print(f"Invalid arguments for 'create hist plot': {args}\nExample: {{'command': 'create hist plot', 'args': ['x']}}")
+                else:
+                    # Create a histogram plot for the specified column
+                    x = args[0]
+                    plot = hp.HistPlot(controller, self.df, x)
+                    time.sleep(0.5)  # Delay to ensure the plot is created
+                    self.msg = {"command": "add iframe", "src": plot.url}
+                    controller.publish("visualization/chartPage", json.dumps(self.msg))
+                    print(f"Histogram plot created for {x}")
+
+            elif command == "init datatable":
+                if len(args) != 0:
+                    print(f"Invalid arguments for 'initialize datatable plot': {args}\nExample: {{'command': 'initialize datatable plot', 'args': []}}")
+                else:
+                    # Initialize the data table
+                    self.data_table = dp.DataTable(controller)
+                    time.sleep(0.5)  # Delay to ensure the data table is initialized
+                    self.msg = {"command": "add iframe", "src": self.data_table.url}
+                    controller.publish("visualization/datatable", json.dumps(self.msg))
+                    print(f"Datatable created")
+
+            elif command == "create world map":
+                if len(args) != 0:
+                    print(f"Invalid arguments for 'create world map': {args}\nExample: {{'command': 'create world map', 'args': []}}")
+                else:
+                    # Create a world map visualization
+                    plot = wm.WorldMap(controller)
+                    time.sleep(1)  # Delay to ensure the plot is created
+                    self.msg = {"command": "add iframe", "src": plot.url}
+                    controller.publish("visualization/worldmap", json.dumps(self.msg))
+                    print(f"World map created")
+
             else:
-                df,number_of_object = ld.load_dataframe(args[0])
-                msg = {"command": "add metadata", "metadata": df.keys().tolist()}
-                controller.publish(publisher, json.dumps(msg))
-                msg = str(number_of_object)
-                controller.publish("visualization/numberOfObject", json.dumps(msg))
-                print(f"DataFrame loaded from {args[0]}")
-                create_default_plot(df, controller)        
-        elif command == "create scatter plot":
-            if len(args) != 2:
-                print(f"Arguments invalides pour 'create scatter plot': {args}\nExemple: {{'command': 'create scatter plot', 'args': ['x', 'y']}}")
-            else:
-                x = args[0]
-                y = args[1]
-                plot = sp.ScatterPlot(controller,df, x, y)
-                time.sleep(0.5)
-                msg = {"command": "add iframe", "src": plot.url}
-                controller.publish(publisher, json.dumps(msg))
-                print(f"Scatter plot created with x={x} and y={y}")
-        
-        elif command == "create hist plot":
-            if len(args) != 1:
-                print(f"Arguments invalides pour 'create hist plot': {args}\nExemple: {{'command': 'create hist plot', 'args': ['x']}}")
-            else:
-                x = args[0]
-                plot = hp.HistPlot(controller,df, x)
-                time.sleep(0.5)
-                msg = {"command": "add iframe", "src": plot.url}
-                controller.publish(publisher, json.dumps(msg))
-                print(f"Histogram plot created for {x}")
+                print(f"Unknown command: {command}")
 
-        else:
-            print(f"Commande inconnue : {command}")
-    
-    except json.JSONDecodeError:
-        print("Erreur de décodage JSON. Message ignoré.")
-    except Exception as e:
-        print(f"Erreur lors du traitement de la commande : {e}")
+        except json.JSONDecodeError:
+            print("JSON decoding error. Message ignored.")
+        except Exception as e:
+            print(f"Error processing command: {e}")
 
-def on_publish(controller, userdata, mid):
-    print("Message : ", mid,' ',userdata, " envoyé")
+    def on_publish(self, controller, userdata, mid):
+        # Callback function when a message is published
+        print("Message: ", self.msg, " sent")
 
-def create_default_plot(df, controller):
+    def create_default_plot(self, df, controller):
+        # Create default scatter plot if columns exist in dataframe
+        default_plots = [("object_width", "object_height"), ("object_bx", "object_by")]
 
-    # Create scatter plot width_object -> height_object
-    default_plots=[("object_width","object_height"),("object_bx","object_by")]
-    for x,y in default_plots:
-        if(x in df.keys() and y in df.keys()):
-            plot = sp.ScatterPlot(controller,df, x, y)
-
-            msg = {"command": "add iframe", "src": plot.url}
-            controller.publish(publisher, json.dumps(msg))
+        x, y = default_plots[0]
+        if x in df.keys() and y in df.keys():
+            plot = sp.ScatterPlot(controller, df, x, y)
+            self.msg = {"command": "add iframe", "src": plot.url}
+            controller.publish("visualization/chartPage", json.dumps(self.msg))
             print(f"Scatter plot created with x={x} and y={y}")
-
         else:
-            print("could not create scatter plot with x={x} and y={y}")
-   
+            print(f"Could not create scatter plot with x={x} and y={y}")
 
-if (__name__ == "__main__"):
-    
-    def run():
-        # Initialisation du client MQTT
-        controller = mqtt.Client()
-        controller.on_connect = on_connect
-        controller.on_message = on_message
-        controller.on_publish = on_publish
+    def run(self):
+        # Connect to the MQTT broker and start listening for messages
+        self.controller.connect(self.broker, self.port, 60)
+        self.controller.loop_forever()  # Enter the network loop
 
-        controller.connect(broker, port, 60)
-
-        # Boucle de réseau pour écouter les messages MQTT
-        controller.loop_forever()
-
-    main_thread=utils.ControlledThread(target=run)
-    main_thread.start()
-    input("Press Enter to stop the main thread")
-    main_thread.kill()
-    main_thread.join()
+if __name__ == "__main__":
+    # Create an instance of the visualization controller and run it
+    visualization_controller = VisualizationController()
+    visualization_controller.run()

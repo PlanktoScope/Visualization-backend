@@ -2,6 +2,7 @@ import psutil
 import socket
 import threading
 import sys
+import pandas as pd
 
 def get_raspberry_pi_ip():
     try:
@@ -73,6 +74,16 @@ class ControlledThread(threading.Thread):
     def kill(self):
         self.killed = True
 
+class CustomDataFrame(pd.DataFrame):
+    _metadata = ['path']
+    
+    def __init__(self, *args, path=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.path = path
+    
+    @property
+    def _constructor(self):
+        return CustomDataFrame
 
 if __name__ == "__main__":
     # Example usage
