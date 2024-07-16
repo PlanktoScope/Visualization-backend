@@ -1,22 +1,23 @@
 import plotly.express as px
 from dash import Dash, dcc, html, Input, Output
 import json
+import requests
+import re
+from flask import request
 
 import utils as utils
 
 
 class HistPlot:
-    def __init__(self,controller, df, x):
+    def __init__(self,controller,app, df, x):
         self.controller = controller
+        self.app=app
         self.df = df
         self.x = x
 
         self.publisher = "visualization/chartPage"
-        self.port = utils.find_first_available_local_port()
-        self.ip_address=utils.get_raspberry_pi_ip()
-        self.url = f"http://{self.ip_address}:{self.port}/"
-        self.thread = None
-        self.start_thread()
+        
+        self.hist_plot()
 
     def create_hist_fig(self):
         # Create a Plotly Express histogram
@@ -94,9 +95,8 @@ class HistPlot:
         fig = self.create_hist_fig()
         
 
-        app = Dash(__name__)
 
-        app.layout = html.Div([
+        self.app.layout = html.Div([
             dcc.Graph(id='hist-plot', figure=fig),
             html.Div(id='output-div'),
             html.Button('X', id='stop-button', n_clicks=0,
@@ -106,42 +106,29 @@ class HistPlot:
             style={'position': 'relative', 'width': '100%', 'height': '100%'}
         )
 
-        # @app.callback(
-        #     Output('output-div', 'children'),
-        #     Input('hist-plot', 'clickData')
-        # )
-        # def display_click_data(clickData):
-        #     if clickData is None:
-        #         return "Cliquez sur un point pour voir les données personnalisées"
-        #     point_data = clickData['points'][0]
-        #     customdata = point_data['customdata']
-        #     return f'Clicked point customdata: {customdata}'
         
-        @app.callback(
-            Output('stop-button', 'children'),
-            Input('stop-button', 'n_clicks')
+        @self.app.callback(
+        Input('stop-button', 'n_clicks')
         )
-        def stop_server(n_clicks):
-            if n_clicks:
-                self.stop_thread()
-                return "Server stopped"
-            return "X"
+        def shutdown(n_clicks):
 
-        app.run_server(debug=False,host=self.ip_address, port=self.port,use_reloader=False)
+            # Use regular expression to find app_id
+            match = re.search(r'.*(\d+)/', self.app.config['requests_pathname_prefix'])
+            if match:
+                app_id = match.group(1)
+                print(f"Shutting down app {app_id}")
+                # Get the base URL of the server
+                base_url = request.host_url
+                # Post request to shutdown the app with app_id
+                shutdown_url = f"{base_url}apps/shutdown"
+                msg={"command":"remove iframe","src":f"{base_url}{self.app.get_relative_path('/')}"}
+                self.controller.publish(self.publisher, json.dumps(msg))
+                response = requests.post(shutdown_url, data={'app_id': app_id})
+                print(f"Shutdown response: {response.text}")
+            else:
+                print("App ID not found")
 
-        print(f"Server running at {self.url}")
-
-    def start_thread(self):
-        self.thread = utils.ControlledThread(target=self.hist_plot)
-        self.thread.start()
-
-    def stop_thread(self):
-        msg= {"command": "remove iframe", "src": self.url}
-        self.controller.publish(self.publisher, json.dumps(msg))
-        self.thread.kill()
-        self.thread.join()
-        print("Server stopped at", self.url)
-
+        
         
 
 # Example usage

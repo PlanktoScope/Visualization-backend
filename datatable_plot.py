@@ -6,14 +6,12 @@ import utils as utils
 import pandas as pd
 
 class DataTable:
-    def __init__(self, controller, df=utils.CustomDataFrame()):
+    def __init__(self, controller,app, df=utils.CustomDataFrame()):
         self.df_parent = df
         self.controller = controller
+        self.app=app
         self.publisher = "visualization/datatable"
-        self.port = utils.find_first_available_local_port()
-        self.ip_address = utils.get_raspberry_pi_ip()
-        self.url = f"http://{self.ip_address}:{self.port}/"
-        self.thread = None
+      
 
         self.default_rows = [
             "object_width",
@@ -38,7 +36,7 @@ class DataTable:
         }
 
         self.df = self.create_default_df()
-        self.start_thread()
+
 
     def create_default_df(self):
         data = {'Index': self.default_rows}
@@ -104,9 +102,8 @@ class DataTable:
         return layout
 
     def create_table(self):
-        self.app = Dash(__name__)
-        self.app.layout = self.create_layout()
 
+        self.app.layout = self.create_layout()
 
         @self.app.callback(
             [Output('data-table', 'columns'), Output('data-table', 'data'), Output('adding-rows-dropdown', 'options')],
@@ -129,8 +126,6 @@ class DataTable:
 
             return columns, rows, options
 
-        self.app.run_server(port=self.port, host=self.ip_address, debug=True, use_reloader=False)
-
     def mean(self, col):
         if not (self.df_parent[col].dtype in [np.float64, np.int64]):   
             return 0
@@ -150,18 +145,6 @@ class DataTable:
         if not (self.df_parent[col].dtype in [np.float64, np.int64]):
             return 0
         return round(np.max(self.df_parent[col]), 2)
-
-    def start_thread(self):
-        self.thread = utils.ControlledThread(target=self.create_table)
-        self.thread.start()
-
-    def stop_thread(self):
-        msg = {"command": "remove iframe", "src": self.url}
-        self.controller.publish(self.publisher, json.dumps(msg))
-        self.thread.kill()
-        self.thread.join()
-        print("Server stopped at", self.url)
-
 
 if __name__ == '__main__':
     import time

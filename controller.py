@@ -3,6 +3,7 @@ import json
 import time
 
 # Import custom modules for data loading and plotting
+from flask_server import FlaskServer
 import load_dataframe as ld
 import scatter_plot as sp
 import hist_plot as hp
@@ -10,10 +11,34 @@ import datatable_plot as dp
 import world_map as wm
 import utils as utils
 
+
+"""
+VisualizationController class is a MQTT controller listenning to the visualization/commands topic where Json object transit. 
+It also respond to the frontend so it display the plots.
+
+/!\ This table may be not correct !!!
+
+            ***Recieve***                           |           ***Response***
+----------------------------------------------------|-----------------------------------------------------------------------------
+    -{command : load dataframe, args:[]             |    ->visualization/chartPage : {command:add metadatas, args[m1,m2,m3...] }
+                                                    |    ->visualization/numberOfObject : 20
+----------------------------------------------------|-----------------------------------------------------------------------------                   
+    -{command : create scatter plot, args:[x,y]}    |    ->visualization/chartPage : {command:scatter plot created, args:x,y}
+----------------------------------------------------|-----------------------------------------------------------------------------                    
+    -{command : create hist plot, args:[x]}         |    ->visualization/chartPage : {command:add iframe, src : http://localhost:5000/plot1}
+----------------------------------------------------|-----------------------------------------------------------------------------                    
+    -{command : init datatable}                     |    ->visualization/datatable : {command:add iframe, src : http://localhost:5000/plot1}
+----------------------------------------------------|-----------------------------------------------------------------------------                    
+    -{command : world map}                          |    ->visualization/map : {command:add iframe, src : http://localhost:5000/plot1}
+    
+"""
+
 class VisualizationController:
-    def __init__(self, broker="localhost", port=1883, subscriber="visualization/commands"):
+    def __init__(self, broker="localhost", mqtt_port=1883, flask_host="127.0.0.1", flask_port=5000, subscriber="visualization/commands"):
         self.broker = broker  # MQTT broker address
-        self.port = port  # MQTT broker port
+        self.mqtt_port = mqtt_port  # MQTT broker port
+        self.flask_host = flask_host
+        self.flask_port = flask_port
         self.subscriber = subscriber  # MQTT topic to subscribe to for commands
         self.df = None  # Placeholder for the dataframe
         self.data_table = None  # Placeholder for the data table visualization
@@ -23,6 +48,9 @@ class VisualizationController:
         self.controller.on_connect = self.on_connect
         self.controller.on_message = self.on_message
         self.controller.on_publish = self.on_publish
+
+        # Create The Flask server
+        self.server = FlaskServer(size=20)
 
     def on_connect(self, controller, userdata, flags, rc):
         # Callback function when the client connects to the broker
@@ -36,7 +64,10 @@ class VisualizationController:
             message = json.loads(received_message.payload.decode())
             command = message.get("command")
             args = message.get("args", [])
+
             print(f"Received command: command:{command}, args:{args}")
+            
+            app = self.server.get_available_app()
 
             if command == "load dataframe":
                 if len(args) != 1:
@@ -44,8 +75,6 @@ class VisualizationController:
                 else:
                     # Load dataframe and extract metadata
                     self.df, number_of_object, metadatas_of_interest = ld.load_dataframe(args[0])
-                    self.data_table.load_df(self.df)
-                    print(f"DataTable loaded")
 
                     # Publish metadata and number of objects
                     self.msg = {"command": "add metadata", "metadata": metadatas_of_interest}
@@ -53,7 +82,6 @@ class VisualizationController:
                     self.msg = str(number_of_object)
                     controller.publish("visualization/numberOfObject", json.dumps(self.msg))
                     print(f"DataFrame loaded from {args[0]}")
-                    self.create_default_plot(self.df, controller)
             
             elif command == "create scatter plot":
                 if len(args) != 2:
@@ -61,9 +89,8 @@ class VisualizationController:
                 else:
                     # Create a scatter plot with specified x and y columns
                     x, y = args
-                    plot = sp.ScatterPlot(controller, self.df, x, y)
-                    time.sleep(0.5)  # Delay to ensure the plot is created
-                    self.msg = {"command": "add iframe", "src": plot.url}
+                    sp.ScatterPlot(controller, app, self.df, x, y)
+                    self.msg = {"command": "add iframe", "src": f"http://{self.flask_host}:{self.flask_port}{app.get_relative_path('/')}"}
                     controller.publish("visualization/chartPage", json.dumps(self.msg))
                     print(f"Scatter plot created with x={x} and y={y}")
 
@@ -73,9 +100,8 @@ class VisualizationController:
                 else:
                     # Create a histogram plot for the specified column
                     x = args[0]
-                    plot = hp.HistPlot(controller, self.df, x)
-                    time.sleep(0.5)  # Delay to ensure the plot is created
-                    self.msg = {"command": "add iframe", "src": plot.url}
+                    hp.HistPlot(controller,app, self.df, x)
+                    self.msg = {"command": "add iframe", "src": f"http://{self.flask_host}:{self.flask_port}{app.get_relative_path('/')}"}
                     controller.publish("visualization/chartPage", json.dumps(self.msg))
                     print(f"Histogram plot created for {x}")
 
@@ -84,9 +110,8 @@ class VisualizationController:
                     print(f"Invalid arguments for 'initialize datatable plot': {args}\nExample: {{'command': 'initialize datatable plot', 'args': []}}")
                 else:
                     # Initialize the data table
-                    self.data_table = dp.DataTable(controller)
-                    time.sleep(0.5)  # Delay to ensure the data table is initialized
-                    self.msg = {"command": "add iframe", "src": self.data_table.url}
+                    self.data_table = dp.DataTable(controller,app)
+                    self.msg = {"command": "add iframe", "src": f"http://{self.flask_host}:{self.flask_port}{app.get_relative_path('/')}"}
                     controller.publish("visualization/datatable", json.dumps(self.msg))
                     print(f"Datatable created")
 
@@ -95,9 +120,8 @@ class VisualizationController:
                     print(f"Invalid arguments for 'create world map': {args}\nExample: {{'command': 'create world map', 'args': []}}")
                 else:
                     # Create a world map visualization
-                    plot = wm.WorldMap(controller)
-                    time.sleep(1)  # Delay to ensure the plot is created
-                    self.msg = {"command": "add iframe", "src": plot.url}
+                    plot = wm.WorldMap(controller,app)
+                    self.msg = {"command": "add iframe", "src": f"http://{self.flask_host}:{self.flask_port}{app.get_relative_path('/')}"}
                     controller.publish("visualization/worldmap", json.dumps(self.msg))
                     print(f"World map created")
 
@@ -109,27 +133,23 @@ class VisualizationController:
         except Exception as e:
             print(f"Error processing command: {e}")
 
+        
+
     def on_publish(self, controller, userdata, mid):
         # Callback function when a message is published
         print("Message: ", self.msg, " sent")
 
-    def create_default_plot(self, df, controller):
-        # Create default scatter plot if columns exist in dataframe
-        default_plots = [("object_width", "object_height"), ("object_bx", "object_by")]
-
-        x, y = default_plots[0]
-        if x in df.keys() and y in df.keys():
-            plot = sp.ScatterPlot(controller, df, x, y)
-            self.msg = {"command": "add iframe", "src": plot.url}
-            controller.publish("visualization/chartPage", json.dumps(self.msg))
-            print(f"Scatter plot created with x={x} and y={y}")
-        else:
-            print(f"Could not create scatter plot with x={x} and y={y}")
-
     def run(self):
         # Connect to the MQTT broker and start listening for messages
-        self.controller.connect(self.broker, self.port, 60)
-        self.controller.loop_forever()  # Enter the network loop
+        try:
+            self.controller.connect(self.broker, self.mqtt_port, 60)
+            self.controller_thread = utils.ControlledThread(target=self.controller.loop_forever)
+            self.server_thread = utils.ControlledThread(target=self.server.run, kwargs={"debug": True, "use_reloader": False,
+                                                                                        "host": self.flask_host, "port": self.flask_port})
+            self.controller_thread.start()
+            self.server_thread.start()
+        except Exception as e:
+            print(f"Failed to start: {e}")
 
 if __name__ == "__main__":
     # Create an instance of the visualization controller and run it

@@ -1,29 +1,27 @@
 import plotly.express as px
-from dash import Dash, dcc, html, Input, Output, no_update, callback
+from dash import dcc, html, Input, Output, no_update, callback
 from PIL import Image
 import io
 import base64
-import json
 import os
+import requests
+import re
+from flask import request
+import json
 
-import utils
 import utils
 
 class ScatterPlot:
-    def __init__(self, controller, df, x, y):
+    def __init__(self,controller,app, df, x, y):
         self.controller = controller
+        self.app=app
         self.df = df
         self.x = x
         self.y = y
 
-        self.done = False
-
         self.publisher = "visualization/chartPage"
-        self.port = utils.find_first_available_local_port()
-        self.ip_address = utils.get_raspberry_pi_ip()
-        self.url = f"http://{self.ip_address}:{self.port}/"
-        self.thread = None
-        self.start_thread()  # Start the thread to run the scatter plot
+
+        self.scatter_plot()
 
     def create_scatter_fig(self):
         # Create a scatter plot figure with custom data for images
@@ -118,11 +116,10 @@ class ScatterPlot:
         return fig  # Return the created figure
 
     def scatter_plot(self):
+
         fig = self.create_scatter_fig()  # Create scatter plot figure
 
-        app = Dash(__name__)
-
-        app.layout = html.Div([
+        self.app.layout = html.Div([
             dcc.Graph(id='scatter-plot', figure=fig, clear_on_unhover=True),
             dcc.Tooltip(id="graph-tooltip-2", direction='bottom'),
             html.Button('X', id='stop-button', n_clicks=0,
@@ -132,18 +129,7 @@ class ScatterPlot:
             style={'position': 'relative', 'width': '100%', 'height': '100%'}
         )
 
-        @callback(
-            Output('stop-button', 'children'),
-            Input('stop-button', 'n_clicks')
-        )
-        def stop_server(n_clicks):
-            # Stop the server if the stop button is clicked
-            if n_clicks:
-                self.stop_thread()
-                return "Server stopped"
-            return "X"
-
-        @callback(
+        @self.app.callback(
             Output("graph-tooltip-2", "show"),
             Output("graph-tooltip-2", "bbox"),
             Output("graph-tooltip-2", "children"),
@@ -152,8 +138,6 @@ class ScatterPlot:
         )
         def display_hover(hoverData):
             # Display the tooltip with image on hover
-            if not self.done:
-                self.done = True
 
             if hoverData is None:
                 print("No hover data")
@@ -191,22 +175,31 @@ class ScatterPlot:
             ]
 
             return True, bbox, children, direction
+        
+        print(f"callback map : {self.app.callback_map}")
 
-        app.run(debug=False, host=self.ip_address, port=self.port, use_reloader=False)
-        print(f"Server running at {self.url}")
 
-    def start_thread(self):
-        # Start the scatter plot in a separate thread
-        self.thread = utils.ControlledThread(target=self.scatter_plot)
-        self.thread.start()
+        @self.app.callback(
+        Input('stop-button', 'n_clicks')
+        )
+        def shutdown(n_clicks):
 
-    def stop_thread(self):
-        # Stop the running thread
-        msg = {"command": "remove iframe", "src": self.url}
-        self.controller.publish(self.publisher, json.dumps(msg))
-        self.thread.kill()
-        self.thread.join()
-        print("Server stopped at", self.url)
+            # Use regular expression to find app_id
+            match = re.search(r'.*(\d+)/', self.app.config['requests_pathname_prefix'])
+            if match:
+                app_id = match.group(1)
+                print(f"Shutting down app {app_id}")
+                # Get the base URL of the server
+                base_url = request.host_url
+                # Post request to shutdown the app with app_id
+                shutdown_url = f"{base_url}apps/shutdown"
+                msg={"command":"remove iframe","src":f"{base_url}{self.app.get_relative_path('/')}"}
+                self.controller.publish(self.publisher, json.dumps(msg))
+                response = requests.post(shutdown_url, data={'app_id': app_id})
+                print(f"Shutdown response: {response.text}")
+            else:
+                print("App ID not found")
+
 
 # Example usage
 if __name__ == "__main__":
