@@ -193,7 +193,7 @@ class ScatterPlot:
                 base_url = request.host_url
                 # Post request to shutdown the app with app_id
                 shutdown_url = f"{base_url}apps/shutdown"
-                msg={"command":"remove iframe","src":f"{base_url}{self.app.get_relative_path('/')}"}
+                msg={"command":"remove iframe","src":f"{base_url[:-1]}{self.app.get_relative_path('')}"}
                 self.controller.publish(self.publisher, json.dumps(msg))
                 response = requests.post(shutdown_url, data={'app_id': app_id})
                 print(f"Shutdown response: {response.text}")

@@ -27,7 +27,6 @@ class FlaskServer():
             app.layout = self.default_layout
             self.apps[i] = app
             self.apps_available.append(i)
-
         @self.server.route('/')
         def index():
             return 'Hello, Visualization Flask Server!<br> <a href="/apps"> /apps </a>'

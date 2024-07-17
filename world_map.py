@@ -22,8 +22,10 @@ class WorldMap:
 
         # Reading data from a JSON file
         data_path = os.path.join('..', 'data', 'datasets.json')
-        self.df = self.read_data("data/datasets.json")
+        self.df = self.read_data(data_path)
 
+        # Setting up the Dash web application
+        self.world_map()
 
 
     def read_data(self, filename):

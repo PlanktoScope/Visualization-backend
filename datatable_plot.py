@@ -1,17 +1,15 @@
 import plotly.express as px
-from dash import Dash, dash_table, dcc, html, Input, Output, State, callback_context, callback
+from dash import Dash, dash_table, dcc, html, Input, Output, State, callback_context
 import numpy as np
-import json
-import utils as utils
 import pandas as pd
+import threading
 
 class DataTable:
-    def __init__(self, controller,app, df=utils.CustomDataFrame()):
-        self.df_parent = df
+    def __init__(self, controller, app, df=None):
+        self.df_parent = df if df is not None else pd.DataFrame()
         self.controller = controller
-        self.app=app
+        self.app = app
         self.publisher = "visualization/datatable"
-      
 
         self.default_rows = [
             "object_width",
@@ -36,7 +34,7 @@ class DataTable:
         }
 
         self.df = self.create_default_df()
-
+        self.create_table()
 
     def create_default_df(self):
         data = {'Index': self.default_rows}
@@ -53,24 +51,33 @@ class DataTable:
                 if column in self.stats_operations:
                     self.df.loc[row_index, column] = self.stats_operations[column](metadata)
         
-        self.app.layout = self.create_layout()
-
-        print(self.df)
-
+        self.rows_data = self.df.to_dict('records')
+        self.app.clientside_callback(
+            """
+            function(data) {
+                return data;
+            }
+            """,
+            Output('data-table', 'data'),
+            [Input('rows', 'data')]
+        )
+        print(f"rows: {self.rows_data}")
 
     def create_layout(self):
-
         self.metadatas_options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Index']
 
-        self.data_table = dash_table.DataTable(
-            id='data-table',
-            data=self.df.to_dict('records'),
-            columns=[{
+        self.rows = dcc.Store(id='rows', data=self.df.to_dict('records'))
+        self.columns = dcc.Store(id='columns', data=[{
                 'name': col,
                 'id': col,
                 'deletable': True,
                 'renamable': True
-            } for col in self.df.columns],
+            } for col in self.df.columns])
+
+        self.data_table = dash_table.DataTable(
+            id='data-table',
+            data=self.df.to_dict('records'),
+            columns=[{'name': col, 'id': col, 'deletable': True, 'renamable': True} for col in self.df.columns],
             editable=True,
             row_deletable=True,
             style_table={'overflowX': 'auto'},
@@ -84,10 +91,11 @@ class DataTable:
         )
 
         layout = html.Div([
+            self.rows,
+            self.columns,
             html.Div([
                 html.Div([self.data_table], style={'flex': 3}),
             ], style={'display': 'flex', 'flex-direction': 'horizontal', 'width': '100%', 'background-color': 'lightgray'}),
-
             html.Div([
                 dcc.Dropdown(
                     id='adding-rows-dropdown',
@@ -102,29 +110,40 @@ class DataTable:
         return layout
 
     def create_table(self):
-
         self.app.layout = self.create_layout()
 
         @self.app.callback(
+            [Output('data-table', 'data', allow_duplicate=True),
+             Output('data-table', 'columns', allow_duplicate=True)],
+            [Input('rows', 'data'),
+             Input('columns', 'data')],
+            prevent_initial_call=True
+        )
+        def update_rows(rows, columns):
+            print(f"Updating rows: {rows}")
+            return rows, columns
+
+        @self.app.callback(
             [Output('data-table', 'columns'), Output('data-table', 'data'), Output('adding-rows-dropdown', 'options')],
-            [Input('adding-rows-button', 'n_clicks'), Input('data-table', 'data'), 
-             Input('data-table', 'columns')],
-            [State('adding-rows-dropdown', 'value')]
+            [Input('adding-rows-button', 'n_clicks')],
+            [State('data-table', 'data'),
+             State('data-table', 'columns'),
+             State('adding-rows-dropdown', 'value')]
         )
         def update_table(n_clicks_add_row, rows, columns, row_to_add):
-            changed_id = [p['prop_id'] for p in callback_context.triggered][0]
+            trigger = callback_context.triggered[0]['prop_id'].split('.')[0]
+            print(f"Trigger: {trigger}")
 
-            if 'adding-rows-button' in changed_id:
-                if n_clicks_add_row > 0 and row_to_add is not None:
-                    new_row = {'Index': row_to_add}
-                    for col in columns:
-                        if col['id'] != 'Index':
-                            new_row[col['id']] = self.stats_operations[col['id']](self.df_parent[row_to_add]) if col['id'] in self.stats_operations else None
-                    rows.append(new_row)
+            if trigger == 'adding-rows-button' and n_clicks_add_row > 0 and row_to_add is not None:
+                new_row = {'Index': row_to_add}
+                for col in columns:
+                    if col['id'] != 'Index':
+                        new_row[col['id']] = self.stats_operations[col['id']](self.df_parent[row_to_add]) if col['id'] in self.stats_operations else None
+                rows.append(new_row)
+                options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Index']
+                return columns, rows, options
 
-            options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Index']
-
-            return columns, rows, options
+            return columns, rows, self.metadatas_options
 
     def mean(self, col):
         if not (self.df_parent[col].dtype in [np.float64, np.int64]):   
@@ -145,11 +164,10 @@ class DataTable:
         if not (self.df_parent[col].dtype in [np.float64, np.int64]):
             return 0
         return round(np.max(self.df_parent[col]), 2)
-
 if __name__ == '__main__':
-    import time
     import pandas as pd
     import numpy as np
+    import threading
 
     # Generate a toy DataFrame
     data = {
@@ -161,7 +179,12 @@ if __name__ == '__main__':
     }
 
     df = pd.DataFrame(data)
-    data_table = DataTable(None)
-    time.sleep(1)   
+
+    app = Dash(__name__)
+    app_thread = threading.Thread(target=app.run, args=("localhost", 8050), kwargs={"use_reloader": False,"debug":True}, daemon=True)
+    app_thread.start()
+    data_table = DataTable(None,app)
+    input("Press Enter to load the DataFrame")
     data_table.load_df(df)
+    input("Press Enter to exit")
     exit()

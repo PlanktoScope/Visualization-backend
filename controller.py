@@ -144,7 +144,7 @@ class VisualizationController:
         try:
             self.controller.connect(self.broker, self.mqtt_port, 60)
             self.controller_thread = utils.ControlledThread(target=self.controller.loop_forever)
-            self.server_thread = utils.ControlledThread(target=self.server.run, kwargs={"debug": True, "use_reloader": False,
+            self.server_thread = utils.ControlledThread(target=self.server.run, kwargs={"debug": False, "use_reloader": False,
                                                                                         "host": self.flask_host, "port": self.flask_port})
             self.controller_thread.start()
             self.server_thread.start()
