@@ -39,7 +39,7 @@ class DataTable:
     def create_default_df(self):
         data = {'Index': self.default_rows}
         for col in self.default_columns:
-            data[col] = [0] * len(self.default_rows)  # Initialize with zeros
+            data[col] = [0.00] * len(self.default_rows)  # Initialize with zeros
         return pd.DataFrame(data)
 
     def load_df(self, df):
@@ -51,33 +51,20 @@ class DataTable:
                 if column in self.stats_operations:
                     self.df.loc[row_index, column] = self.stats_operations[column](metadata)
         
-        self.rows_data = self.df.to_dict('records')
-        self.app.clientside_callback(
-            """
-            function(data) {
-                return data;
-            }
-            """,
-            Output('data-table', 'data'),
-            [Input('rows', 'data')]
-        )
-        print(f"rows: {self.rows_data}")
+
 
     def create_layout(self):
         self.metadatas_options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Index']
 
-        self.rows = dcc.Store(id='rows', data=self.df.to_dict('records'))
-        self.columns = dcc.Store(id='columns', data=[{
+        self.data_table = dash_table.DataTable(
+            id='data-table',
+            data=self.df.to_dict('records'),
+            columns=[{
                 'name': col,
                 'id': col,
                 'deletable': True,
                 'renamable': True
-            } for col in self.df.columns])
-
-        self.data_table = dash_table.DataTable(
-            id='data-table',
-            data=self.df.to_dict('records'),
-            columns=[{'name': col, 'id': col, 'deletable': True, 'renamable': True} for col in self.df.columns],
+            } for col in self.df.columns],
             editable=True,
             row_deletable=True,
             style_table={'overflowX': 'auto'},
@@ -91,8 +78,7 @@ class DataTable:
         )
 
         layout = html.Div([
-            self.rows,
-            self.columns,
+            dcc.Interval(id='interval', interval=2500, n_intervals=0), #refresh the table every 2.5 seconds+
             html.Div([
                 html.Div([self.data_table], style={'flex': 3}),
             ], style={'display': 'flex', 'flex-direction': 'horizontal', 'width': '100%', 'background-color': 'lightgray'}),
@@ -114,14 +100,14 @@ class DataTable:
 
         @self.app.callback(
             [Output('data-table', 'data', allow_duplicate=True),
-             Output('data-table', 'columns', allow_duplicate=True)],
-            [Input('rows', 'data'),
-             Input('columns', 'data')],
+             Output('adding-rows-dropdown', 'options', allow_duplicate=True)],
+            [Input('interval', 'n_intervals')],
             prevent_initial_call=True
         )
-        def update_rows(rows, columns):
-            print(f"Updating rows: {rows}")
-            return rows, columns
+        def update_rows(n_intervals):
+            rows=self.df.to_dict('records')
+            options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Index']
+            return rows,options
 
         @self.app.callback(
             [Output('data-table', 'columns'), Output('data-table', 'data'), Output('adding-rows-dropdown', 'options')],
@@ -138,9 +124,13 @@ class DataTable:
                 new_row = {'Index': row_to_add}
                 for col in columns:
                     if col['id'] != 'Index':
-                        new_row[col['id']] = self.stats_operations[col['id']](self.df_parent[row_to_add]) if col['id'] in self.stats_operations else None
+                        new_row[col['id']] = self.stats_operations[col['id']](row_to_add) if col['id'] in self.stats_operations else None
                 rows.append(new_row)
                 options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Index']
+
+                # Adding to the df
+                self.df = pd.DataFrame(rows)
+
                 return columns, rows, options
 
             return columns, rows, self.metadatas_options
@@ -164,6 +154,7 @@ class DataTable:
         if not (self.df_parent[col].dtype in [np.float64, np.int64]):
             return 0
         return round(np.max(self.df_parent[col]), 2)
+
 if __name__ == '__main__':
     import pandas as pd
     import numpy as np
@@ -183,7 +174,7 @@ if __name__ == '__main__':
     app = Dash(__name__)
     app_thread = threading.Thread(target=app.run, args=("localhost", 8050), kwargs={"use_reloader": False,"debug":True}, daemon=True)
     app_thread.start()
-    data_table = DataTable(None,app)
+    data_table = DataTable(None, app)
     input("Press Enter to load the DataFrame")
     data_table.load_df(df)
     input("Press Enter to exit")

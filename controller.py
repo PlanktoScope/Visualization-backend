@@ -76,6 +76,10 @@ class VisualizationController:
                     # Load dataframe and extract metadata
                     self.df, number_of_object, metadatas_of_interest = ld.load_dataframe(args[0])
 
+                    # Refresh the data table if it exists
+                    if self.data_table is not None:
+                        self.data_table.load_df(self.df)
+
                     # Publish metadata and number of objects
                     self.msg = {"command": "add metadata", "metadata": metadatas_of_interest}
                     controller.publish("visualization/chartPage", json.dumps(self.msg))
