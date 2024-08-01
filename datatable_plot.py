@@ -37,16 +37,19 @@ class DataTable:
         self.create_table()
 
     def create_default_df(self):
-        data = {'Index': self.default_rows}
+        data = {'Morphology metrics': self.default_rows}
         for col in self.default_columns:
             data[col] = [0.00] * len(self.default_rows)  # Initialize with zeros
         return pd.DataFrame(data)
+    
+    def reset_df(self):
+        self.df = self.create_default_df()
 
     def load_df(self, df):
         self.df_parent = df
 
         for row_index, row in enumerate(self.df.iterrows()):
-            metadata = self.df["Index"][row_index]
+            metadata = self.df["Morphology metrics"][row_index]
             for col_index, (column, value) in enumerate(row[1].items()):
                 if column in self.stats_operations:
                     self.df.loc[row_index, column] = self.stats_operations[column](metadata)
@@ -54,7 +57,7 @@ class DataTable:
 
 
     def create_layout(self):
-        self.metadatas_options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Index']
+        self.metadatas_options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Morphology metrics']
 
         self.data_table = dash_table.DataTable(
             id='data-table',
@@ -72,7 +75,7 @@ class DataTable:
             style_header={'backgroundColor': 'lightgray', 'fontWeight': 'bold'},
             style_data_conditional=[{
                 'if': {'row_index': 'odd'},
-                'backgroundColor': 'rgb(248, 248, 248)'
+                'backgroundColor': 'rgb(240, 240, 240)'
             }],
             style_as_list_view=True
         )
@@ -81,17 +84,30 @@ class DataTable:
             dcc.Interval(id='interval', interval=2500, n_intervals=0), #refresh the table every 2.5 seconds+
             html.Div([
                 html.Div([self.data_table], style={'flex': 3}),
-            ], style={'display': 'flex', 'flex-direction': 'horizontal', 'width': '100%', 'background-color': 'lightgray'}),
+            ], style={'display': 'flex', 
+                      'flex-direction': 'horizontal', 
+                      'width': '100%'}
+                      ),
             html.Div([
                 dcc.Dropdown(
                     id='adding-rows-dropdown',
                     options=self.metadatas_options,
                     style={'flex': 2}
                 ),
-                html.Button('Add Row', id='adding-rows-button', n_clicks=0)
-            ], style={'display': 'flex', 'justify-content': 'flex-start', 'align-items': 'center', 'height': 50, 'width': '20%',
-                      'background-color': 'lightblue'}),
-        ], style={'width': '100%', 'height': "100%", 'margin': 10})
+                html.Button(
+                    'Add Row', 
+                    id='adding-rows-button', 
+                    n_clicks=0, 
+                    style={'flex': 1,
+                           'height': '90%'
+                           }
+                )
+            ], style={'display': 'flex', 
+                      'justify-content': 'flex-start', 
+                      'align-items': 'center', 
+                      'height': 50, 'width': 'auto'}
+                      ),
+        ], style={'width': '100%', 'height': "100%"})
 
         return layout
 
@@ -106,7 +122,7 @@ class DataTable:
         )
         def update_rows(n_intervals):
             rows=self.df.to_dict('records')
-            options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Index']
+            options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Morphology metrics']
             return rows,options
 
         @self.app.callback(
@@ -121,12 +137,12 @@ class DataTable:
             print(f"Trigger: {trigger}")
 
             if trigger == 'adding-rows-button' and n_clicks_add_row > 0 and row_to_add is not None:
-                new_row = {'Index': row_to_add}
+                new_row = {'Morphology metrics': row_to_add}
                 for col in columns:
-                    if col['id'] != 'Index':
+                    if col['id'] != 'Morphology metrics':
                         new_row[col['id']] = self.stats_operations[col['id']](row_to_add) if col['id'] in self.stats_operations else None
                 rows.append(new_row)
-                options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Index']
+                options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Morphology metrics']
 
                 # Adding to the df
                 self.df = pd.DataFrame(rows)

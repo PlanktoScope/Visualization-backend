@@ -21,6 +21,12 @@ class ScatterPlot:
 
         self.publisher = "visualization/chartPage"
 
+        # Remove unwanted buttons from the plotly graph
+        self.config = {
+            'modeBarButtonsToRemove': ["select", "zoomIn", "zoomOut", "autoScale"],
+            'displaylogo': False
+        }
+
         self.scatter_plot()
 
     def create_scatter_fig(self):
@@ -29,9 +35,14 @@ class ScatterPlot:
             data_frame=self.df,
             x=self.x,
             y=self.y,
-            custom_data=["img_file_name"]
+            custom_data=["img_file_name"],
+            title=self.df.name
         )
-        fig.update_traces(marker=dict(size=10, color='#a3a7e4'), hoverinfo='none', hovertemplate=None)
+        fig.update_traces(mode='markers', marker_line_width=1, marker_size=8,marker_opacity=0.3, marker_color='#a3a7e4',
+                          hoverinfo='none', hovertemplate=None)
+
+        # Add a title to the figure
+
 
         fig.update_layout(
             updatemenus=[
@@ -49,9 +60,9 @@ class ScatterPlot:
                     type="buttons",
                     direction="down",
                     showactive=True,
-                    x=-0.03,
+                    x=-0.30,
                     xanchor="left",
-                    y=1,
+                    y=1.1,
                     yanchor="top"
                 ),
                 dict(
@@ -70,7 +81,7 @@ class ScatterPlot:
                     showactive=True,
                     x=0.90,
                     xanchor="left",
-                    y=-0.05,
+                    y=-0.10,
                     yanchor="top"
                 ),
                 dict(
@@ -87,9 +98,9 @@ class ScatterPlot:
                     type="buttons",
                     direction="down",
                     showactive=True,
-                    x=-0.03,
+                    x=-0.30,
                     xanchor="left",
-                    y=1,
+                    y=1.1,
                     yanchor="top"
                 ),
                 dict(
@@ -108,7 +119,7 @@ class ScatterPlot:
                     showactive=True,
                     x=0.90,
                     xanchor="left",
-                    y=-0.05,
+                    y=-0.10,
                     yanchor="top"
                 ),
             ]
@@ -120,7 +131,7 @@ class ScatterPlot:
         fig = self.create_scatter_fig()  # Create scatter plot figure
 
         self.app.layout = html.Div([
-            dcc.Graph(id='scatter-plot', figure=fig, clear_on_unhover=True),
+            dcc.Graph(id='scatter-plot', figure=fig, config=self.config,clear_on_unhover=True),
             dcc.Tooltip(id="graph-tooltip-2", direction='bottom'),
             html.Button('X', id='stop-button', n_clicks=0,
                         style={'position': 'absolute', 'top': 10, 'right': 10,
@@ -176,7 +187,6 @@ class ScatterPlot:
 
             return True, bbox, children, direction
         
-        print(f"callback map : {self.app.callback_map}")
 
 
         @self.app.callback(

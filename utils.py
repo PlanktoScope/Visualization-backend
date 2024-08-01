@@ -2,6 +2,7 @@ import psutil
 import socket
 import threading
 import sys
+import os
 import pandas as pd
 
 def get_raspberry_pi_ip():
@@ -44,42 +45,13 @@ def find_first_available_local_port(start_port=49152, end_port=65535):
                     continue
     return None  # Return None if no available port is found
 
-class ControlledThread(threading.Thread):
-    def __init__(self, *args, **keywords):
-        threading.Thread.__init__(self, *args, **keywords)
-        self.killed = False
-
-    def start(self):
-        self.__run_backup = self.run
-        self.run = self.__run      
-        threading.Thread.start(self)
-
-    def __run(self):
-        sys.settrace(self.globaltrace)
-        self.__run_backup()
-        self.run = self.__run_backup
-
-    def globaltrace(self, frame, event, arg):
-        if event == 'call':
-            return self.localtrace
-        else:
-            return None
-
-    def localtrace(self, frame, event, arg):
-        if self.killed:
-            if event == 'line':
-                raise SystemExit()
-        return self.localtrace
-
-    def kill(self):
-        self.killed = True
-
 class CustomDataFrame(pd.DataFrame):
-    _metadata = ['path']
+    _metadata = ['path','name']
     
     def __init__(self, *args, path=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.path = path
+        self.name = os.path.basename(self.path) if self.path else None
     
     @property
     def _constructor(self):

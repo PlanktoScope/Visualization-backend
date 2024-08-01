@@ -6,6 +6,8 @@ from utils import CustomDataFrame
 def load_dataframe(path):
     # Load a TSV (Tab Separated Values) file into a pandas DataFrame
     tsv = pd.read_csv(path, sep='\t')
+    # To lower case all column names
+    tsv.columns = tsv.columns.str.lower()
     
     # Initialize a CustomDataFrame object with the loaded data and the file path
     df = CustomDataFrame(tsv, path=path)
@@ -32,6 +34,7 @@ def load_dataframe(path):
 
 # Exemple d'utilisation
 if __name__ == '__main__':
-    df,number_of_object = load_dataframe('C:\\Users\\luffy\\.node-red\\data\\BTS2023_S2\\ecotaxa_export.tsv')
-    print(df.head(10))
-    print(f"Number of object : {number_of_object}")
+    df,number_of_object,metadatas = load_dataframe('C:\\Users\\luffy\\.node-red\\data\\BTS2023_S2\\ecotaxa_export.tsv')
+    print(f"Path: {df.path}")
+    print(f"Name: {df.name}")
+    # print(df.head(10))

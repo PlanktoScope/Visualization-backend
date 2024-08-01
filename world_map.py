@@ -21,8 +21,11 @@ class WorldMap:
        
 
         # Reading data from a JSON file
-        data_path = os.path.join('..', 'data', 'datasets.json')
+        data_path = os.path.join('..', 'data', 'summary.json')
         self.df = self.read_data(data_path)
+
+        # Hidding the mode bar
+        self.config = {'displayModeBar': False}
 
         # Setting up the Dash web application
         self.world_map()
@@ -31,6 +34,8 @@ class WorldMap:
     def read_data(self, filename):
         # Method to load data from a JSON file into a DataFrame
         df = pd.read_json(filename, orient="records")
+        # Transform the 'date' column to datetime format
+        df['date'] = pd.to_datetime(df['date'],format='%Y%m%d')
         return df
 
     def create_world_map_fig(self):
@@ -39,9 +44,10 @@ class WorldMap:
             self.df,
             lat="lat",
             lon="lon",
-            color="number_of_objects",  # Column for marker color
+            color="Objects/ml",  # Column for marker color
             projection="natural earth",
             color_continuous_scale=px.colors.sequential.Bluered,  # Using a predefined color scale
+            hover_data={"filename": True,"date":True,"Objects/ml": ":.2f","lat": ":.0f","lon": ":.0f"} # Displaying additional data on hover
         )
 
         # Updating figure layout and trace properties
@@ -52,14 +58,15 @@ class WorldMap:
             width=None
         )
 
-        fig.update_traces(
-            marker=dict(size=10, opacity=0.6)
-        )
+        # Updating marker properties
+        size = [10] * len(self.df)
+        opacity = [0.5] * len(self.df)
+        fig.update_traces(marker=dict(size=size, opacity=opacity))
 
         # Adjusting color axis properties for the color bar
         fig.update_coloraxes(colorbar=dict(
             thickness=10,  # Adjusting color bar thickness
-            len=0.7,  # Adjusting color bar length
+            len=0.9,  # Adjusting color bar length
             yanchor="middle",  # Vertically anchoring at the middle
             y=0.5,  # Vertically positioning at the middle
         ))
@@ -68,18 +75,42 @@ class WorldMap:
 
     def world_map(self):
         # Method to setup and run the Dash web application
-        fig = self.create_world_map_fig()
+        self.fig = self.create_world_map_fig()
 
 
         # Defining the layout of the web application
         self.app.layout = html.Div([
-            dcc.Graph(id='world-map', figure=fig, clear_on_unhover=True,
-                      style={'position': 'relative', 'width': '100%', 'height': '100%'}),
-            html.Div(id='app-status'),
-            dcc.Store(id='app-state', data={'ready': False})  # Storing application state
+            dcc.Graph(id='world-map', figure=self.fig, clear_on_unhover=True,config=self.config,
+                      style={'position': 'relative', 'flex':1})
         ],
-            style={'position': 'relative', 'width': '100%', 'height': '100%'}
+            style={'position': 'relative', 
+                   'display': 'flex',
+                   'margin': 0,
+                   'padding': 0,
+                   'overflow': 'hidden',
+                   'align-items': 'center',
+                   'justify-content': 'center'
+                   }
         )
+
+        @self.app.callback(
+            Output('world-map', 'figure'),
+            Input('world-map', 'clickData')
+        )
+        def select_point(clickData):
+            # Callback function to handle click events on the world map
+            if clickData is None:
+                return no_update
+
+            # Highlighting the selected point on the world map
+            selected_point = clickData['points'][0]
+            selected_point['marker.opacity'] = 1
+
+            # Updating the figure with the highlighted point
+            opacity = [1 if i == selected_point['pointNumber'] else 0.5 for i in range(len(self.df))]
+            self.fig.update_traces(marker=dict(opacity=opacity))           
+
+            return self.fig
 
        
 # Example usage section
@@ -94,4 +125,7 @@ if __name__ == "__main__":
     ]
 
     df = pd.DataFrame(data)
-    world_map = WorldMap(None)  # Creating an instance of WorldMap without a controller for demonstration
+
+    app = Dash(__name__)  # Creating an instance of Dash for the web application
+    world_map = WorldMap(None,app)  # Creating an instance of WorldMap without a controller for demonstration
+    app.run(debug=True, use_reloader=False)  # Running the web application

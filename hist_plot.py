@@ -14,14 +14,22 @@ class HistPlot:
         self.app=app
         self.df = df
         self.x = x
+        
 
         self.publisher = "visualization/chartPage"
+
+        # Remove unwanted buttons from the plotly graph
+        self.config = {
+            'modeBarButtonsToRemove': ["select", "zoomIn", "zoomOut", "autoScale"],
+            'displaylogo': False
+        }
         
         self.hist_plot()
 
     def create_hist_fig(self):
         # Create a Plotly Express histogram
-        fig = px.histogram(data_frame=self.df, x=self.x)
+        fig = px.histogram(data_frame=self.df, x=self.x,title=self.df.name)
+        fig.update_traces(marker_color='#a3a7e4')
 
         # Create buttons for standard units and percentages
         normalization_buttons = [
@@ -97,7 +105,7 @@ class HistPlot:
 
 
         self.app.layout = html.Div([
-            dcc.Graph(id='hist-plot', figure=fig),
+            dcc.Graph(id='hist-plot', figure=fig, config=self.config),
             html.Div(id='output-div'),
             html.Button('X', id='stop-button', n_clicks=0,
                         style={'position': 'absolute', 'top': 10, 'right': 10,
