@@ -7,10 +7,10 @@ import threading
 # Import custom modules for data loading and plotting
 
 from flask_server import FlaskServer
-import load_dataframe as ld
 import scatter_plot as sp
 import hist_plot as hp
-import datatable_plot as dp
+import datatable as dp
+import infotable as ip
 import world_map as wm
 import timeline as tm
 import utils as utils
@@ -49,6 +49,7 @@ class VisualizationController:
         self.map = None # Placeholder for the map
         self.timeline=None # Placeholder for the timeline
         self.data_table = None  # Placeholder for the data table visualization
+        self.info_table = None  # Placeholder for the info table visualization
 
         self.BASIC_PLOTS = [
             {"type": "hist", "x": "object_equivalent_diameter"},
@@ -98,48 +99,49 @@ class VisualizationController:
 
     def clear_all(self, controller, app):
 
-        #Reset Number of object
-        self.msg = str(0)
-        controller.publish("visualization/numberOfObject", json.dumps(self.msg))
+        # Reset tables
+        if self.data_table is not None:
+            self.data_table.reset_df()
 
-        # Clear all the plots and data tables
+        if self.info_table is not None:
+            self.info_table.reset_df()
+
+        # Clear all the plots
         for app_id in self.server.apps.keys():
             app = self.server.apps[app_id]
-            if(app != self.map.app):
+            if(app != self.map.app and app != self.data_table.app and app != self.timeline.app and app != self.info_table.app):
+                app.layout = self.server.default_layout
+                app.callback_map.clear()
+                if app_id in self.server.apps_running:
+                    self.server.apps_running.remove(app_id)
+                    base_url="http://"+str(self.FLASK_HOST)+":"+str(self.FLASK_PORT)
+                    msg={"command":"remove iframe","src":f"{base_url}{app.get_relative_path('')}"}
+                    self.controller.publish("visualization/chartPage", json.dumps(msg))
+                if app_id not in self.server.apps_available:
+                    self.server.apps_available.append(app_id)
 
-                if(app == self.data_table.app):
-                    self.data_table.reset_df()
-                else:
-                    app.layout = self.server.default_layout
-                    app.callback_map.clear()
-                    if app_id in self.server.apps_running:
-                        self.server.apps_running.remove(app_id)
-                        base_url="http://"+str(self.FLASK_HOST)+":"+str(self.FLASK_PORT)
-                        msg={"command":"remove iframe","src":f"{base_url}{app.get_relative_path('')}"}
-                        self.controller.publish("visualization/chartPage", json.dumps(msg))
-                    if app_id not in self.server.apps_available:
-                        self.server.apps_available.append(app_id)
 
         
     def load_dataframe(self, controller, app, filepath):
-        if not filepath:
-            print(f"Invalid arguments for 'load dataframe': {filepath}\nExample: {{'command': 'load dataframe', 'args': ['/path/to/dataframe']}}")
-        else:
-            # Load dataframe and extract metadata
-            self.df, number_of_object, metadatas_of_interest = ld.load_dataframe(filepath)
 
-            # Refresh the data table if it exists
-            if self.data_table is not None:
-                self.data_table.load_df(self.df)
+        # Load dataframe and extract metadata
+        self.df, number_of_object, metadatas_of_interest = utils.load_dataframe(filepath)
 
-            self.create_defaults_plots(controller)
+        # Set values in the data table if it exists
+        if self.data_table is not None:
+            self.data_table.load_df(self.df)
 
-            # Publish metadata and number of objects
-            self.msg = {"command": "add metadata", "metadata": metadatas_of_interest}
-            controller.publish("visualization/chartPage", json.dumps(self.msg))
-            self.msg = str(number_of_object)
-            controller.publish("visualization/numberOfObject", json.dumps(self.msg))
-            print(f"DataFrame loaded from {filepath}")
+        # Set values in the info table if it exists
+        if self.info_table is not None:
+            self.info_table.load_df(self.df)
+
+        # Create default plots
+        self.create_defaults_plots(controller)
+
+        # Publish metadata
+        self.msg = {"command": "add metadata", "metadata": metadatas_of_interest}
+        controller.publish("visualization/chartPage", json.dumps(self.msg))
+        print(f"DataFrame loaded from {filepath}")
 
     def create_scatter_plot(self, controller, app, x, y):
         if not x or not y:
@@ -167,6 +169,13 @@ class VisualizationController:
         self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
         controller.publish("visualization/datatable", json.dumps(self.msg))
         print(f"Datatable created")
+
+    def init_infotable(self, controller, app):
+        # Initialize the data table
+        self.info_table = ip.InfoTable(controller, app)
+        self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
+        controller.publish("visualization/infotable", json.dumps(self.msg))
+        print(f"InfoTable created")
 
     def create_world_map(self, controller, app):
         # Create a world map visualization
@@ -197,7 +206,7 @@ class VisualizationController:
 
     def on_publish(self, controller, userdata, mid):
         # Callback function when a message is published
-        print("Message: ", self.msg, " sent")
+        print("Message: ", mid, " sent")
 
     def run(self):
         # Connect to the MQTT BROKER and start listening for messages

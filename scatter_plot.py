@@ -8,6 +8,7 @@ import requests
 import re
 from flask import request
 import json
+import zipfile
 
 import utils
 
@@ -158,18 +159,34 @@ class ScatterPlot:
             img_file_name = pt["customdata"][0]
             print(f"Hover data received: {img_file_name}")
 
-            # Load image with pillow
-            image_path = os.path.dirname(self.df.path) + "/" + img_file_name
+            if(self.df.zip==False):
+                # Load image with pillow
+                image_path = os.path.dirname(self.df.path) + "/" + img_file_name
 
-            try:
-                im = Image.open(image_path)
-                buffer = io.BytesIO()
-                im.save(buffer, format="jpeg")
-                encoded_image = base64.b64encode(buffer.getvalue()).decode()
-                im_url = "data:image/jpeg;base64," + encoded_image
-            except Exception as e:
-                print(f"Error loading image: {e}")
-                return False, no_update, no_update, no_update
+                try:
+                    im = Image.open(image_path)
+                    buffer = io.BytesIO()
+                    im.save(buffer, format="jpeg")
+                    encoded_image = base64.b64encode(buffer.getvalue()).decode()
+                    im_url = "data:image/jpeg;base64," + encoded_image
+                except Exception as e:
+                    print(f"Error loading image: {e}")
+                    return False, no_update, no_update, no_update
+            else:
+                # Load image from zip
+                try:
+                    zip_path, inner_path = self.df.path.split('zip:', 1)
+                    zip_path=zip_path+'zip'
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        with zip_ref.open(img_file_name) as file:
+                            im = Image.open(file)
+                            buffer = io.BytesIO()
+                            im.save(buffer, format="jpeg")
+                            encoded_image = base64.b64encode(buffer.getvalue()).decode()
+                            im_url = "data:image/jpeg;base64," + encoded_image
+                except Exception as e:
+                    print(f"Error loading image from ZIP: {e}")
+                    return False, no_update, no_update, no_update
 
             hover_data = hoverData["points"][0]
             bbox = hover_data["bbox"]

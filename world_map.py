@@ -1,10 +1,8 @@
 # Importing necessary libraries for data visualization, web application development, data manipulation, and threading
 import plotly.express as px
 from dash import Dash, dcc, html, Input, Output, no_update, callback
-import json
 import pandas as pd
 import os
-import threading
 
 # Importing a custom utility module
 import utils
@@ -21,8 +19,8 @@ class WorldMap:
        
 
         # Reading data from a JSON file
-        data_path = os.path.join('..', 'data', 'summary.json')
-        self.df = self.read_data(data_path)
+        data_path = os.path.join('..', 'data/export/')
+        self.df = self.create_df(data_path)
 
         # Hidding the mode bar
         self.config = {'displayModeBar': False}
@@ -31,11 +29,50 @@ class WorldMap:
         self.world_map()
 
 
-    def read_data(self, filename):
-        # Method to load data from a JSON file into a DataFrame
-        df = pd.read_json(filename, orient="records")
+    def create_df(self, path):
+        # Method to create a DataFrame from TSV files in a directory
+        columns = ['filename', 'Objects/ml', 'date', 'lat', 'lon']
+        df = pd.DataFrame(columns=columns)
+        tsvs = utils.find_tsv_files(path)
+
+        # Helper function to extract a value or return a default if not available
+        def get_value(df, column, default=1):
+            if column in df.columns and not df[column].empty:
+                try:
+                    value = float(df[column].iloc[0])
+                    return value if value else default
+                except (ValueError, TypeError):
+                    return default
+            return default
+
+        data_list = []
+
+        for tsv in tsvs:
+            df_temp, nb_objects, metadatas = utils.load_dataframe(tsv)
+            
+            acq_imaged_volume = get_value(df_temp, "acq_imaged_volume")
+            sample_dilution_factor = get_value(df_temp, "sample_dilution_factor")
+            sample_concentrated_sample_volume = get_value(df_temp, "sample_concentrated_sample_volume")
+            sample_total_volume = get_value(df_temp, "sample_total_volume")
+
+            data = {
+                "filename": os.path.basename(tsv),
+                "Objects/ml": (nb_objects / acq_imaged_volume) * sample_dilution_factor * (sample_concentrated_sample_volume / (sample_total_volume * 1000)),
+                "date": df_temp["acq_local_datetime"].iloc[0] if "acq_local_datetime" in df_temp.columns and not df_temp["acq_local_datetime"].empty else None,
+                "lat": df_temp["object_lat"].iloc[0] if "object_lat" in df_temp.columns and not df_temp["object_lat"].empty else None,
+                "lon": df_temp["object_lon"].iloc[0] if "object_lon" in df_temp.columns and not df_temp["object_lon"].empty else None
+            }
+            data_list.append(data)
+        
+        df = pd.concat([df, pd.DataFrame(data_list)], ignore_index=True)
+
+        
+                
+
         # Transform the 'date' column to datetime format
-        df['date'] = pd.to_datetime(df['date'],format='%Y%m%d')
+        df['date'] = pd.to_datetime(df['date'])
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+
         return df
 
     def create_world_map_fig(self):
@@ -115,17 +152,6 @@ class WorldMap:
        
 # Example usage section
 if __name__ == "__main__":
-    # Manually creating a DataFrame with adjusted latitude and longitude coordinates to simulate data
-    data = [
-        {"filename": "dataset1.tsv", "number_of_objects": 100, "lat": 0, "lon": -30},
-        {"filename": "dataset2.tsv", "number_of_objects": 200, "lat": 10, "lon": -40},
-        {"filename": "dataset3.tsv", "number_of_objects": 300, "lat": -20, "lon": -30},
-        {"filename": "dataset4.tsv", "number_of_objects": 400, "lat": -10, "lon": 150},
-        {"filename": "dataset5.tsv", "number_of_objects": 500, "lat": 0, "lon": 160}
-    ]
-
-    df = pd.DataFrame(data)
-
     app = Dash(__name__)  # Creating an instance of Dash for the web application
     world_map = WorldMap(None,app)  # Creating an instance of WorldMap without a controller for demonstration
     app.run(debug=True, use_reloader=False)  # Running the web application

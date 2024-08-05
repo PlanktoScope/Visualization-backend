@@ -1,66 +1,91 @@
-import psutil
-import socket
-import threading
-import sys
+
 import os
 import pandas as pd
+import zipfile
 
-def get_raspberry_pi_ip():
-    try:
-        # Connect to an external server to get the local IP address
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0)
-        s.connect(('8.8.8.8', 1))  # Use Google Public DNS server address
-        ip_address = s.getsockname()[0]
-        s.close()
-        return ip_address
-    except Exception as e:
-        print(f"Error getting IP address: {e}")
-        return None
+def find_tsv_files(path):
+    # Initialize an empty list to store the paths of TSV files
+    tsv_files = []
+    
+    # Iterate through the directory tree
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            # Check if the file is a TSV file
+            if file.endswith('.tsv'):
+                # Add the path of the TSV file to the list
+                tsv_files.append(os.path.join(root, file))
 
-def get_used_local_ports():
-    raspberry_pi_ip = get_raspberry_pi_ip()
-    if not raspberry_pi_ip:
-        return set()
+            if file.endswith('.zip'):
+                # explore the zip file
+                with zipfile.ZipFile(os.path.join(root, file), 'r') as zip_ref:
+                    for inner_file in zip_ref.namelist():
+                        if inner_file.endswith('.tsv'):
+                            # Add the path of the TSV file to the list
+                            tsv_files.append(os.path.join(root, file) + ':' + inner_file)
     
-    used_ports = set()
-    connections = psutil.net_connections(kind='inet')
-    
-    for conn in connections:
-        if conn.laddr and conn.laddr.ip == raspberry_pi_ip:  # Check for Raspberry Pi IP
-            used_ports.add(conn.laddr.port)
-    
-    return used_ports
+    return tsv_files
 
-def find_first_available_local_port(start_port=49152, end_port=65535):
-    used_ports = get_used_local_ports()
+def load_dataframe(path):
+    # Initialize a CustomDataFrame object with the path
+    df = CustomDataFrame(path=path)
     
-    for port in range(start_port, end_port + 1):
-        if port not in used_ports:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    s.bind((get_raspberry_pi_ip(), port))
-                    return port
-                except OSError:
-                    continue
-    return None  # Return None if no available port is found
+    # To lower case all column names
+    df.columns = df.columns.str.lower()
+    
+    # Drop the first row of the DataFrame
+    types = df.iloc[0]
+    df = df.drop(0)
+    
+    # Initialize an empty list to store columns of interest
+    metadatas_of_interest = []
+    
+    # Iterate through each column in the DataFrame
+    for col in df.columns:
+        # Check if the first row of the column is marked with '[f]', indicating it should be treated as numeric
+        if types[col] == '[f]':
+            # Convert the column to numeric type
+            df[col] = pd.to_numeric(df[col])
+            # Add the column to the list of metadatas of interest if it contains 'object_', but not 'id' or 'label'
+            if "object_" in col and "id" not in col and "label" not in col:
+                metadatas_of_interest.append(col)
+
+    return df, len(df), metadatas_of_interest
 
 class CustomDataFrame(pd.DataFrame):
-    _metadata = ['path','name']
+    _metadata = ['path', 'name','zip']
     
     def __init__(self, *args, path=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.path = path
-        self.name = os.path.basename(self.path) if self.path else None
+        if path:
+            if 'zip:' in path:
+                zip_path, inner_path = path.split('zip:', 1)
+                zip_path=zip_path+'zip'
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    with zip_ref.open(inner_path) as file:
+                        # Read the TSV file from the ZIP archive
+                        super().__init__(pd.read_csv(file, sep='\t', *args, **kwargs))
+                self.zip = True
+            else:
+                # Read the TSV file directly
+                super().__init__(pd.read_csv(path, sep='\t', *args, **kwargs))
+                self.zip = False
+            self.path = path
+            self.name = os.path.basename(path)
+        else:
+            super().__init__(*args, **kwargs)
+            self.path = None
+            self.name = None
+            self.zip = False
     
     @property
     def _constructor(self):
         return CustomDataFrame
 
+
+
+
 if __name__ == "__main__":
     # Example usage
-    available_port = find_first_available_local_port()
-    if available_port:
-        print(f"First available local port: {available_port}")
-    else:
-        print("No available local port found")
+    tsv_files=find_tsv_files('C:\\Users\\luffy\\.node-red\\data\\export')
+    print(f"Found {len(tsv_files)} TSV files:")
+    for file in tsv_files:
+        print(file)
