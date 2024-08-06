@@ -164,28 +164,41 @@ class VisualizationController:
             print(f"Histogram plot created for {x}")
 
     def init_datatable(self, controller, app):
-        # Initialize the data table
-        self.data_table = dp.DataTable(controller, app)
+        if(self.data_table is not None):
+            app=self.data_table.app
+        else:
+            # Initialize the data table
+            self.data_table = dp.DataTable(controller, app)
         self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
         controller.publish("visualization/datatable", json.dumps(self.msg))
         print(f"Datatable created")
 
     def init_infotable(self, controller, app):
-        # Initialize the data table
-        self.info_table = ip.InfoTable(controller, app)
+        if(self.info_table is not None):
+            app=self.info_table.app
+        else:
+            # Initialize the data table
+            self.info_table = ip.InfoTable(controller, app)
         self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
         controller.publish("visualization/infotable", json.dumps(self.msg))
         print(f"InfoTable created")
 
     def create_world_map(self, controller, app):
         # Create a world map visualization
-        self.map = wm.WorldMap(controller, app)
+        if(self.map is not None):
+            app=self.map.app
+        else:
+            self.map = wm.WorldMap(controller, app)
         self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
         controller.publish("visualization/worldmap", json.dumps(self.msg))
         print(f"World map created")
 
     def create_timeline(self,controller,app):
-        self.timeline=tm.Timeline(controller,app)
+
+        if(self.timeline is not None):
+            app=self.timeline.app
+        else:
+            self.timeline=tm.Timeline(controller,app)
         self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
         controller.publish("visualization/timeline", json.dumps(self.msg))
         print(f"Timeline created")

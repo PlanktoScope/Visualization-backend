@@ -3,6 +3,7 @@ import plotly.express as px
 from dash import Dash, dcc, html, Input, Output, no_update, callback
 import pandas as pd
 import os
+import paho.mqtt.client as mqtt
 
 # Importing a custom utility module
 import utils
@@ -15,7 +16,7 @@ class WorldMap:
         self.app = app
 
         # Setting up publication and server details
-        self.publisher = "visualization/worldmap"
+        self.publisher = "visualization/dataset"
        
 
         # Reading data from a JSON file
@@ -34,6 +35,8 @@ class WorldMap:
         columns = ['filename', 'Objects/ml', 'date', 'lat', 'lon']
         df = pd.DataFrame(columns=columns)
         tsvs = utils.find_tsv_files(path)
+
+
 
         # Helper function to extract a value or return a default if not available
         def get_value(df, column, default=1):
@@ -55,8 +58,11 @@ class WorldMap:
             sample_concentrated_sample_volume = get_value(df_temp, "sample_concentrated_sample_volume")
             sample_total_volume = get_value(df_temp, "sample_total_volume")
 
+            filename=os.path.basename(tsv)
+            filename=filename.split("zip:")[-1]
+
             data = {
-                "filename": os.path.basename(tsv),
+                "filename": filename,
                 "Objects/ml": (nb_objects / acq_imaged_volume) * sample_dilution_factor * (sample_concentrated_sample_volume / (sample_total_volume * 1000)),
                 "date": df_temp["acq_local_datetime"].iloc[0] if "acq_local_datetime" in df_temp.columns and not df_temp["acq_local_datetime"].empty else None,
                 "lat": df_temp["object_lat"].iloc[0] if "object_lat" in df_temp.columns and not df_temp["object_lat"].empty else None,
@@ -64,6 +70,9 @@ class WorldMap:
             }
             data_list.append(data)
         
+        # delete duplicates
+        data_list = [i for n, i in enumerate(data_list) if i not in data_list[n + 1:]]
+
         df = pd.concat([df, pd.DataFrame(data_list)], ignore_index=True)
 
         
@@ -84,7 +93,8 @@ class WorldMap:
             color="Objects/ml",  # Column for marker color
             projection="natural earth",
             color_continuous_scale=px.colors.sequential.Bluered,  # Using a predefined color scale
-            hover_data={"filename": True,"date":True,"Objects/ml": ":.2f","lat": ":.0f","lon": ":.0f"} # Displaying additional data on hover
+            hover_data={"filename": True,"date":True,"Objects/ml": ":.2f","lat": ":.0f","lon": ":.0f"}, # Displaying additional data on hover
+            custom_data="filename"
         )
 
         # Updating figure layout and trace properties
@@ -141,11 +151,16 @@ class WorldMap:
 
             # Highlighting the selected point on the world map
             selected_point = clickData['points'][0]
-            selected_point['marker.opacity'] = 1
 
             # Updating the figure with the highlighted point
             opacity = [1 if i == selected_point['pointNumber'] else 0.5 for i in range(len(self.df))]
-            self.fig.update_traces(marker=dict(opacity=opacity))           
+            self.fig.update_traces(marker=dict(opacity=opacity))
+
+            # Send the selected point to MQTT visualization/dataset
+            
+            dataset_name = selected_point['customdata'][0]
+            self.controller.publish(self.publisher, dataset_name)
+                
 
             return self.fig
 
