@@ -156,10 +156,10 @@ This is a Python script that defines two functions and a class, all related to w
 
 The provided code demonstrates how to create various types of visualizations:
 
-* **World Map**: Displays a world map with markers or bubbles representing data points.
-* **Timeline**: A sequence of events over time, often represented by lines or bars.
-* **Data Table**: Presents numerical data in a tabular format, allowing users to filter and sort the data.
-* **Info Table**: Similar to a data table but displays more detailed information about each data point.
+* **World Map**: Displays a world map with markers representing datasets.
+* **Timeline**: Datasets over time.
+* **Data Table**: Presents object metadata in a tabular format.
+* **Info Table**: Similar to a data table but displays metadata about the project.
 * **Scatter Plot**: Plots data points on a 2D coordinate system (x-y axis) to show relationships between variables.
 * **Hist Plot**: Displays the distribution of data values over a range of intervals or bins.
 
@@ -169,7 +169,7 @@ Each chart follows a similar structure:
 
 1. **Data Preparation**: Create a new Pandas DataFrame (df) if it is needed to transform the data given in input of the class that represent the tsv file
 2. **Creation of Plotly Layout**: Define the appearance of the figure, including colors, fonts, backgrounds, and more.
-3. **Creation of Dash App**: Contain the Plotly figure and add HTML/CSS elements with custom Python code to enhance the visualization.
+3. **Creation of Dash App**: Contain the Plotly figure and add HTML/CSS elements with custom Python code to enhance the visualization and add dynamic interactions with the user.
 
 **Key Components**
 
