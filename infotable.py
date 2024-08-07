@@ -118,7 +118,8 @@ class InfoTable:
             if trigger == 'adding-rows-button' and n_clicks_add_row > 0 and row_to_add is not None:
                 row_name = row_to_add.split('_')[1:]
                 row_name = ' '.join(row_name)
-                new_row = {"Project Information": row_name, "Value": self.df_parent[row_to_add]}
+                print(self.df_parent[row_to_add])
+                new_row = {"Project Information": row_name, "Value": self.df_parent[row_to_add][1] if len(self.df_parent[row_to_add])>=1 else None}
 
                 rows.append(new_row)
                 options = [{'label': col, 'value': col} for col in self.df_parent.columns if 'sample' in col or 'acq' in col]

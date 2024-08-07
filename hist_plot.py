@@ -34,7 +34,7 @@ class HistPlot:
         # Create buttons for standard units and percentages
         normalization_buttons = [
             {
-                'label': 'Standard Units',
+                'label': 'Count',
                 'method': 'update',
                 'args': [
                     {'histnorm': ''},  # Update the normalization
@@ -75,12 +75,12 @@ class HistPlot:
                 {
                     'buttons': normalization_buttons,
                     'direction': 'left',
-                    'pad': {'r': 10, 't': 10},
+                    'pad': {'r': 0, 't': 0, 'b': 0, 'l': 0},
                     'showactive': True,
                     'type': 'buttons',
                     'x': 0.1,
                     'xanchor': 'left',
-                    'y': 1.1,
+                    'y': 1.15,
                     'yanchor': 'top'
                 }
                 # ,
@@ -108,7 +108,7 @@ class HistPlot:
             dcc.Graph(id='hist-plot', figure=fig, config=self.config),
             html.Div(id='output-div'),
             html.Button('X', id='stop-button', n_clicks=0,
-                        style={'position': 'absolute', 'top': 10, 'right': 10,
+                        style={'position': 'absolute', 'top': 10, 'left': 10,
                                'background-color': 'red', 'color': 'white'})
         ],
             style={'position': 'relative', 'width': '100%', 'height': '100%'}

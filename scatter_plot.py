@@ -49,7 +49,7 @@ class ScatterPlot:
             updatemenus=[
                 dict(
                     buttons=list([
-                        dict(label="Linear",
+                        dict(label="Lin",
                              method="relayout",
                              args=[{"yaxis.type": "linear"}]
                              ),
@@ -59,6 +59,7 @@ class ScatterPlot:
                              )
                     ]),
                     type="buttons",
+                    pad= {'r': 0, 't': 0, 'b': 0, 'l': 0},
                     direction="down",
                     showactive=True,
                     x=-0.30,
@@ -68,7 +69,7 @@ class ScatterPlot:
                 ),
                 dict(
                     buttons=list([
-                        dict(label="Linear",
+                        dict(label="Lin",
                              method="relayout",
                              args=[{"xaxis.type": "linear"}]
                              ),
@@ -78,44 +79,7 @@ class ScatterPlot:
                              )
                     ]),
                     type="buttons",
-                    direction="right",
-                    showactive=True,
-                    x=0.90,
-                    xanchor="left",
-                    y=-0.10,
-                    yanchor="top"
-                ),
-                dict(
-                    buttons=list([
-                        dict(label="Linear",
-                             method="relayout",
-                             args=[{"yaxis.type": "linear"}]
-                             ),
-                        dict(label="Log",
-                             method="relayout",
-                             args=[{"yaxis.type": "log"}]
-                             )
-                    ]),
-                    type="buttons",
-                    direction="down",
-                    showactive=True,
-                    x=-0.30,
-                    xanchor="left",
-                    y=1.1,
-                    yanchor="top"
-                ),
-                dict(
-                    buttons=list([
-                        dict(label="Linear",
-                             method="relayout",
-                             args=[{"xaxis.type": "linear"}]
-                             ),
-                        dict(label="Log",
-                             method="relayout",
-                             args=[{"xaxis.type": "log"}]
-                             )
-                    ]),
-                    type="buttons",
+                    pad= {'r': 0, 't': 0, 'b': 0, 'l': 0},
                     direction="right",
                     showactive=True,
                     x=0.90,
@@ -135,7 +99,7 @@ class ScatterPlot:
             dcc.Graph(id='scatter-plot', figure=fig, config=self.config,clear_on_unhover=True),
             dcc.Tooltip(id="graph-tooltip-2", direction='bottom'),
             html.Button('X', id='stop-button', n_clicks=0,
-                        style={'position': 'absolute', 'top': 10, 'right': 10,
+                        style={'position': 'absolute', 'top': 10, 'left': 10,
                                'background-color': 'red', 'color': 'white'})
         ],
             style={'position': 'relative', 'width': '100%', 'height': '100%'}
