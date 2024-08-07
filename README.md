@@ -11,7 +11,7 @@
 
 ### Introduction
 
-Your project is a Python library for building machine learning models. This README file contains information on how to install, run and test the package.
+This is the backend for the visualization page of node-red. It contains a MQTT client that creates dynamically figure on the fly
 
 ### Installation
 To run this project you need to have python 3 or higher installed in your computer. You can download python from [this link](https://www.python.org/downloads/). Then you can install the required packages using pip by running the following command:
