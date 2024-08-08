@@ -37,12 +37,11 @@ class ScatterPlot:
             x=self.x,
             y=self.y,
             custom_data=["img_file_name"],
-            title=self.df.name
+            title=self.df.name # Add a title to the figure
+
         )
         fig.update_traces(mode='markers', marker_line_width=1, marker_size=8,marker_opacity=0.3, marker_color='#a3a7e4',
                           hoverinfo='none', hovertemplate=None)
-
-        # Add a title to the figure
 
 
         fig.update_layout(

@@ -20,29 +20,33 @@ import utils as utils
 VisualizationController class is a MQTT controller listenning to the visualization/commands topic where Json object transit. 
 It also respond to the frontend so it display the plots.
 
-/!\ This table may be not correct !!!
+
 
             ***Recieve***                           |           ***Response***
 ----------------------------------------------------|-----------------------------------------------------------------------------
     -{command : load dataframe, args:[]             |    ->visualization/chartPage : {command:add metadatas, args[m1,m2,m3...] }
-                                                    |    ->visualization/numberOfObject : 20
 ----------------------------------------------------|-----------------------------------------------------------------------------                   
-    -{command : create scatter plot, args:[x,y]}    |    ->visualization/chartPage : {command:scatter plot created, args:x,y}
+    -{command : create scatter plot, args:[x,y]}    |    ->visualization/chartPage : {command:add iframe, src : http://localhost:5000/plot1}
 ----------------------------------------------------|-----------------------------------------------------------------------------                    
     -{command : create hist plot, args:[x]}         |    ->visualization/chartPage : {command:add iframe, src : http://localhost:5000/plot1}
 ----------------------------------------------------|-----------------------------------------------------------------------------                    
-    -{command : init datatable}                     |    ->visualization/datatable : {command:add iframe, src : http://localhost:5000/plot1}
+    -{command : init datatable, args:[]}            |    ->visualization/datatable : {command:add iframe, src : http://localhost:5000/plot1}
 ----------------------------------------------------|-----------------------------------------------------------------------------                    
-    -{command : world map}                          |    ->visualization/map : {command:add iframe, src : http://localhost:5000/plot1}
-    
+    -{command : init infotable, args:[]}            |    ->visualization/infotable : {command:add iframe, src : http://localhost:5000/plot1}
+----------------------------------------------------|-----------------------------------------------------------------------------   
+    -{command : create world map, args:[]}          |    ->visualization/worldmap : {command:add iframe, src : http://localhost:5000/plot1}
+                                                    |     if point clicked ->visualization/dataset : str(dataset name)
+ -------------------------------------------------- |-----------------------------------------------------------------------------   
+    -{command : create timeline, args:[]}           |    ->visualization/timeline : {command:add iframe, src : http://localhost:5000/plot1}
+                                                    |     if bar clicked ->visualization/dataset : str(dataset name)
 """
 
 class VisualizationController:
     def __init__(self, BROKER="localhost", MQTT_PORT=1883, FLASK_HOST="127.0.0.1", FLASK_PORT=5000, SUBSCRIBER="visualization/commands"):
         self.BROKER = BROKER  # MQTT BROKER address
         self.MQTT_PORT = MQTT_PORT  # MQTT BROKER port
-        self.FLASK_HOST = FLASK_HOST
-        self.FLASK_PORT = FLASK_PORT
+        self.FLASK_HOST = FLASK_HOST # Flask server address that will be the base route for the iframe
+        self.FLASK_PORT = FLASK_PORT # Flask server port
         self.SUBSCRIBER = SUBSCRIBER  # MQTT topic to subscribe to for commands
 
         self.df = None  # Placeholder for the dataframe
@@ -51,6 +55,7 @@ class VisualizationController:
         self.data_table = None  # Placeholder for the data table visualization
         self.info_table = None  # Placeholder for the info table visualization
 
+        # List of basic plots to create when a dataframe is loaded
         self.BASIC_PLOTS = [
             {"type": "hist", "x": "object_equivalent_diameter"},
             {"type": "hist", "x": "object_area"},

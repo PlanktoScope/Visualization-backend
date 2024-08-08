@@ -6,14 +6,16 @@ import threading
 
 class InfoTable:
     def __init__(self, controller, app, df=None):
+        # Initialize the InfoTable with a controller, Dash app, and optional DataFrame
         self.df_parent = df if df is not None else pd.DataFrame()
         self.controller = controller
         self.app = app
         self.publisher = "visualization/infotable"
 
+        # Define default rows for the table
         self.default_rows = {
             "Project Name": "sample_project",
-            "Number of objects":None,
+            "Number of objects": None,
             "Sample ID": "sample_id",
             "Ship": "sample_ship",
             "Sampling operator": "sample_operator",
@@ -25,19 +27,23 @@ class InfoTable:
             "Pixel size (um)": "process_pixel"
         }
 
+        # Create the default DataFrame and table layout
         self.df = self.create_default_df()
         self.create_table()
 
     def create_default_df(self):
+        # Create a default DataFrame with the defined rows
         rows_name = self.default_rows.keys()
         data = {row_name: [None] for row_name in rows_name}
         df = pd.DataFrame(data)
         return df.transpose().reset_index().rename(columns={"index": "Project Information", 0: "Value"})
     
     def reset_df(self):
+        # Reset the DataFrame to the default state
         self.df = self.create_default_df()
 
     def load_df(self, df):
+        # Load a new DataFrame and update the table
         self.df_parent = df
         self.df = self.create_default_df()
 
@@ -48,6 +54,7 @@ class InfoTable:
                 self.df.loc[self.df['Project Information'] == row, 'Value'] = self.df_parent[self.default_rows[row]].values[0]
 
     def create_layout(self):
+        # Create the layout for the Dash app
         self.metadatas_options = [{'label': col, 'value': col} for col in self.df_parent.columns if col != 'Morphology metrics']
 
         self.data_table = dash_table.DataTable(
@@ -58,8 +65,8 @@ class InfoTable:
                 'id': col
             } for col in self.df.columns],
 
-            style_table={'overflowX': 'auto','overflowY': 'auto'},
-            style_cell={'textAlign': 'left','padding-left':'10px','padding-right':'10px'},
+            style_table={'overflowX': 'auto', 'overflowY': 'auto'},
+            style_cell={'textAlign': 'left', 'padding-left': '10px', 'padding-right': '10px'},
             style_header={'backgroundColor': 'lightgray', 'fontWeight': 'bold'},
             style_data_conditional=[{
                 'if': {'row_index': 'odd'},
@@ -89,6 +96,7 @@ class InfoTable:
         return layout
 
     def create_table(self):
+        # Set the layout for the Dash app and define callbacks
         self.app.layout = self.create_layout()
 
         @self.app.callback(
@@ -98,6 +106,7 @@ class InfoTable:
             prevent_initial_call=True
         )
         def update_rows(n_intervals):
+            # Update the rows and options for the table
             rows = self.df.to_dict('records')
             options = [{'label': col, 'value': col} for col in self.df_parent.columns if 'sample' in col or 'acq' in col]
             return rows, options
@@ -112,6 +121,7 @@ class InfoTable:
              State('adding-rows-dropdown', 'value')]
         )
         def update_table(n_clicks_add_row, rows, columns, row_to_add):
+            # Update the table when a new row is added
             trigger = callback_context.triggered[0]['prop_id'].split('.')[0]
             print(f"Trigger: {trigger}")
 
@@ -119,7 +129,7 @@ class InfoTable:
                 row_name = row_to_add.split('_')[1:]
                 row_name = ' '.join(row_name)
                 print(self.df_parent[row_to_add])
-                new_row = {"Project Information": row_name, "Value": self.df_parent[row_to_add][1] if len(self.df_parent[row_to_add])>=1 else None}
+                new_row = {"Project Information": row_name, "Value": self.df_parent[row_to_add][1] if len(self.df_parent[row_to_add]) >= 1 else None}
 
                 rows.append(new_row)
                 options = [{'label': col, 'value': col} for col in self.df_parent.columns if 'sample' in col or 'acq' in col]
@@ -155,9 +165,12 @@ if __name__ == '__main__':
 
     df = pd.DataFrame(data)
 
+    # Create a Dash app and run it in a separate thread
     app = Dash(__name__)
     app_thread = threading.Thread(target=app.run, args=("localhost", 8050), kwargs={"use_reloader": False, "debug": True}, daemon=True)
     app_thread.start()
+
+    # Create an InfoTable instance and load the DataFrame
     data_table = InfoTable(None, app)
     input("Press Enter to load the DataFrame")
     data_table.load_df(df)

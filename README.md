@@ -1,11 +1,16 @@
-# ProjectName
-> A brief description of the project.
+# Data Visualization Backend
+> This is the backend for the node-red visualization page. 
 
 ## Table of Contents
 
 * [Introduction](#introduction)
 * [Installation](#installation)
+* [Run the project](#run-the-project)
 * [Code](#code)
+	* [controller.py](#controllerpy)
+	* [flask_server.py](#flask_serverpy)
+	* [utils.py](#utilspy)
+	* [Charts section](#charts)
 
 ---
 
@@ -19,6 +24,17 @@ To run this project you need to have python 3 or higher installed in your comput
 pip install -r requirements.txt
 ```
 
+For the GUI you need to pull from the node-red editor the node-red-gui-refonte project from github.
+To access to github from your node-red you have to go to the `settings.json` of your node-red and switch the project field to `true`
+
+### Run the project
+
+In order to run the project you have to execute the python file `controller.py` with that command :
+```bash
+python path/controller.py
+```
+Once it is launched you can depploy your node-red application. On depployment the front-end will ask information to the backend to initialize
+
 ### Code
 
 #### controller.py
@@ -29,8 +45,7 @@ The script defines several methods related to creating different types of visual
 
 Here's a breakdown of the code:
 
-1. The first section imports necessary libraries: `paho.mqtt.client` for MQTT, `json` for JSON serialization, and "Invalid arguments" is likely a string literal.
-2. The `VisualizationController` class defines several methods:
+1. The `VisualizationController` class defines several methods:
 	* `create_scatter_plot`: Creates a scatter plot with specified x and y columns.
 	* `create_hist_plot`: Creates a histogram plot for the specified column.
 	* `init_datatable`: Initializes the data table.
@@ -38,24 +53,24 @@ Here's a breakdown of the code:
 	* `create_world_map`: Creates a world map visualization.
 	* `create_timeline`: Creates a timeline visualization.
 	* `create_defaults_plots`: Creates default plots based on a list of basic plots.
-3. The `on_publish` method is a callback function that prints a message when a message is published.
-4. The `run` method:
+2. The `on_publish` method is a callback function that prints a message when a message is published.
+3. The `run` method:
 	* Connects to the MQTT broker using the `connect` method.
 	* Starts two threads: one for the MQTT controller and another for the Flask server.
 	* Calls the `loop_forever` method on the MQTT controller thread, which runs indefinitely.
-5. The script defines several instance variables:
+4. The script defines several instance variables:
 	* `controller`: an MQTT client object.
 	* `server`: a Flask server object.
-	* `data_table`, `info_table`, and `map`: objects that represent data tables, information tables, and maps, respectively.
-6. Finally, the script creates an instance of the `VisualizationController` class and runs it using the `run` method.
+	* `data_table`, `info_table`, and `map`: objects always visible created on frontend initialization
+	* `df` : a dataframe that represent the last tsv file loaded
 
-In summary, this script is part of a larger application that uses MQTT to handle messaging between different components. It provides methods for creating various types of visualizations and initializing data tables and information tables.
+
 
 ---
 
 #### flask_server.py
 
-This is a Python script that defines a class `FlaskServer` for creating and managing multiple Dash applications (which are web-based visualizations) using Flask as the web server.
+This Python module defines a class `FlaskServer` for creating and managing multiple Dash applications (which are web-based visualizations) using Flask as the web server.
 
 Here's a breakdown of the code:
 
@@ -88,42 +103,9 @@ The `get_available_app` method returns an available Dash app (i.e., one that is 
 
 ---
 
-This is a Python script that defines two functions and a class, all related to working with TSV (Tab-Separated Values) files. Here's a breakdown of the code:
-
-**Functions**
-
-1. `find_tsv_files(path)`:
-	* Iterates through a directory tree starting from the given `path`.
-	* Checks if each file is a TSV file (ending with `.tsv`) and adds its path to an empty list `tsv_files` if it is.
-	* If a file is a ZIP archive containing a TSV file, extracts the inner file's path and adds it to the list as well. The format of these paths will be `zip_file:inner_file.tsv`.
-	* Returns the list of TSV files found.
-2. `load_dataframe(path)`:
-	* Initializes a `CustomDataFrame` object with the given `path`.
-	* Converts all column names to lowercase using the `str.lower()` method.
-	* Drops the first row of the DataFrame (assuming it's unnecessary metadata).
-	* Iterates through each column in the DataFrame and checks if the first value is marked as numeric (`'[f]'`). If so, converts the entire column to a numeric type using `pd.to_numeric()`.
-	* Checks if any columns contain specific keywords (`'object_'`, but not `'id'` or `'label'`) and adds them to an empty list `metadatas_of_interest`. These are likely metadata columns of interest.
-	* Returns the loaded DataFrame, its length, and the list of metadatas of interest.
-
-**Class**
-
-1. `CustomDataFrame(pd.DataFrame)`:
-	* Defines a custom DataFrame class that inherits from Pandas' built-in `pd.DataFrame` class.
-	* Adds three attributes: `path`, `name`, and `zip`. These are used to store metadata about the DataFrame, such as its file path and whether it was loaded from a ZIP archive.
-	* Overloads the `__init__()` method to initialize the custom DataFrame with optional parameters `path` and `**kwargs`.
-	* If a `path` is provided, checks if it's a ZIP file containing an inner TSV file. If so, reads the TSV file from the ZIP archive using `zipfile.ZipFile`. Otherwise, reads the TSV file directly using `pd.read_csv()`.
-	* Sets the `zip` attribute to `True` if the DataFrame was loaded from a ZIP archive and `False` otherwise.
-	* Sets the `path` and `name` attributes accordingly.
-
-**Example usage**
-
-In the last block of code, the script demonstrates how to use the two functions by finding all TSV files in a directory and printing their paths.
-
----
-
 #### utils.py
 
-This is a Python script that defines two functions and a class, all related to working with TSV (Tab-Separated Values) files. Here's a breakdown of the code:
+This Python module defines two functions and a class, all related to working with TSV (Tab-Separated Values) files. Here's a breakdown of the code:
 
 **Functions**
 
@@ -153,8 +135,6 @@ This is a Python script that defines two functions and a class, all related to w
 ---
 
 #### Charts
-
-The provided code demonstrates how to create various types of visualizations:
 
 * **World Map**: Displays a world map with markers representing datasets.
 * **Timeline**: Datasets over time.

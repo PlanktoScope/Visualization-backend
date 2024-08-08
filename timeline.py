@@ -45,6 +45,7 @@ class Timeline:
 
         data_list = []
 
+        # Iterating over the TSV files to extract data
         for tsv in tsvs:
             df_temp, nb_objects, metadatas = utils.load_dataframe(tsv)
             
@@ -121,8 +122,8 @@ class Timeline:
                 # Change color of the selected bar
                 selected_bar = clickData['points'][0]
 
+                #TODO find a way to make it works
                 # Updating the figure with the selected bar
-                # it doesn t work
                 # color = ["#479ef5" if i == selected_bar['curveNumber'] else "#a3a7e4" for i in range(len(self.df))]
                 # self.fig.update_traces(marker=dict(color=color))
             
@@ -132,10 +133,6 @@ class Timeline:
                 self.controller.publish(self.publisher, filename)
 
             return self.fig
-
-
-        
-        
 
 # Example usage
 if __name__ == "__main__":

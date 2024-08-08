@@ -50,6 +50,7 @@ class WorldMap:
 
         data_list = []
 
+        # Iterating over the TSV files to extract data
         for tsv in tsvs:
             df_temp, nb_objects, metadatas = utils.load_dataframe(tsv)
             
