@@ -1,5 +1,28 @@
 # Data Visualization Backend
-> This is the backend for the node-red visualization page. 
+> This is the backend for the node-red visualization page.
+
+# TODO
+**to implement this backend**
+1. **/!\ Done but not tried /!\\** Change `FLASK_HOST` attribute to `0.0.0.0`, then change every MQTT msg "add iframe" and "remove iframe" with only the dash app route without the `FLASK_HOST` prefix
+2. Reverse proxy the flask server. By default the Flask server runs on port 5000. But you can change this with the `FLASK_PORT` parameter (`Visualization_Controller` parameter)
+3. Replace the `requirements.txt` by a poetry file to manage libraries installation and avoid libraries conflicts
+
+**information about the server**
+
+Visualization_Controller default values :
+* BROKER="localhost"
+* MQTT_PORT=1883
+* FLASK_HOST="0.0.0.0"
+* FLASK_PORT=5000
+* SUBSCRIBER="visualization/commands"
+
+BROKER stands for the MQTT broker address.
+MQTT_PORT stands for the MQTT port
+FLASK_HOST the Flask server IP address
+FLASK_PORT the Flask server port
+SUBSCRIBER the Visualization_Controller topic it listenned to
+
+---
 
 ## Table of Contents
 
@@ -152,10 +175,15 @@ Each chart follows a similar structure:
 2. **Creation of Plotly Layout**: Define the appearance of the figure, including colors, fonts, backgrounds, and more.
 3. **Creation of Dash App**: Contain the Plotly figure and add HTML/CSS elements with custom Python code to enhance the visualization and add dynamic interactions with the user.
 
+For removable iframe : 
+A callback function send a POST msg to the Flask server and send a MQTT msg "remove iframe" to the node-red chartPage node
+
 **Key Components**
 
 The code uses several key components:
 
 * **Dash App Framework**: Manages the web application.
 * **Plotly Figures**: Used to create visualizations, including world maps, timelines, data tables, and more.
+* **Pandas DataFrame**: Used to store/manipulate data
+* **MQTT**: For the MQTT interaction with the front-end
 
