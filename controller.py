@@ -42,7 +42,7 @@ It also respond to the frontend so it display the plots.
 """
 
 class VisualizationController:
-    def __init__(self, BROKER="localhost", MQTT_PORT=1883, FLASK_HOST="127.0.0.1", FLASK_PORT=5000, SUBSCRIBER="visualization/commands"):
+    def __init__(self, BROKER="localhost", MQTT_PORT=1883, FLASK_HOST="0.0.0.0", FLASK_PORT=5000, SUBSCRIBER="visualization/commands"):
         self.BROKER = BROKER  # MQTT BROKER address
         self.MQTT_PORT = MQTT_PORT  # MQTT BROKER port
         self.FLASK_HOST = FLASK_HOST # Flask server address that will be the base route for the iframe
@@ -154,7 +154,7 @@ class VisualizationController:
         else:
             # Create a scatter plot with specified x and y columns
             sp.ScatterPlot(controller, app, self.df, x, y)
-            self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
+            self.msg = {"command": "add iframe", "src": f"{app.get_relative_path('/')}"}
             controller.publish("visualization/chartPage", json.dumps(self.msg))
             print(f"Scatter plot created with x={x} and y={y}")
 
@@ -164,7 +164,7 @@ class VisualizationController:
         else:
             # Create a histogram plot for the specified column
             hp.HistPlot(controller, app, self.df, x)
-            self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
+            self.msg = {"command": "add iframe", "src": f"{app.get_relative_path('/')}"}
             controller.publish("visualization/chartPage", json.dumps(self.msg))
             print(f"Histogram plot created for {x}")
 
@@ -174,7 +174,7 @@ class VisualizationController:
         else:
             # Initialize the data table
             self.data_table = dp.DataTable(controller, app)
-        self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
+        self.msg = {"command": "add iframe", "src": f"{app.get_relative_path('/')}"}
         controller.publish("visualization/datatable", json.dumps(self.msg))
         print(f"Datatable created")
 
@@ -184,7 +184,7 @@ class VisualizationController:
         else:
             # Initialize the data table
             self.info_table = ip.InfoTable(controller, app)
-        self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
+        self.msg = {"command": "add iframe", "src": f"{app.get_relative_path('/')}"}
         controller.publish("visualization/infotable", json.dumps(self.msg))
         print(f"InfoTable created")
 
@@ -194,7 +194,7 @@ class VisualizationController:
             app=self.map.app
         else:
             self.map = wm.WorldMap(controller, app)
-        self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
+        self.msg = {"command": "add iframe", "src": f"{app.get_relative_path('/')}"}
         controller.publish("visualization/worldmap", json.dumps(self.msg))
         print(f"World map created")
 
@@ -204,7 +204,7 @@ class VisualizationController:
             app=self.timeline.app
         else:
             self.timeline=tm.Timeline(controller,app)
-        self.msg = {"command": "add iframe", "src": f"http://{self.FLASK_HOST}:{self.FLASK_PORT}{app.get_relative_path('/')}"}
+        self.msg = {"command": "add iframe", "src": f"{app.get_relative_path('/')}"}
         controller.publish("visualization/timeline", json.dumps(self.msg))
         print(f"Timeline created")
 
