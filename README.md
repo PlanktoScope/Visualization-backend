@@ -23,6 +23,7 @@ To run this project you need to have python 3 or higher installed in your comput
 ```bash
 pip install -r requirements.txt
 ```
+Same on a Planktoscope. Clone this repository into your planktoscope and with the command line install the required packages.
 
 For the GUI you need to pull from the node-red editor the node-red-gui-refonte project from github.
 To access to github from your node-red you have to go to the `settings.json` of your node-red and switch the project field to `true`
@@ -33,7 +34,7 @@ In order to run the project you have to execute the python file `controller.py` 
 ```bash
 python path/controller.py
 ```
-Once it is launched you can depploy your node-red application. On depployment the front-end will ask information to the backend to initialize
+Once it is launched you can depploy your node-red application. On depployment the front-end will ask information to the backend to initialize (world map,timeline,tables...)
 
 ### Code
 
@@ -157,5 +158,4 @@ The code uses several key components:
 
 * **Dash App Framework**: Manages the web application.
 * **Plotly Figures**: Used to create visualizations, including world maps, timelines, data tables, and more.
-* **Callback Functions**: Handle user interactions (e.g., clicks on the world map) and update the visualization accordingly.
 
